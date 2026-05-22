@@ -31,9 +31,10 @@ export default defineConfig({
   },
 
   // Добавьте этот блок для исправления ошибки на Render
-  preview: {
-    allowedHosts: true,
-  },
+preview: {
+  allowedHosts: ['://onrender.com'],
+},
+
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
