@@ -137,15 +137,15 @@ export default function About() {
   return (
     <div>
       {/* ─── PAGE HEADER ─── */}
-      <section className="py-14 px-6 lg:px-10 border-b border-border bg-secondary">
+      <section className="py-14 px-6 lg:px-10 border-b border-border" style={{ background: "#F5F0FF" }}>
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="max-w-5xl mx-auto"
         >
-          <h1 className="text-5xl lg:text-6xl font-bold mb-4">О центре</h1>
-          <p className="text-muted-foreground max-w-xl">
+          <h1 className="text-heading font-bold mb-4" style={{ color: "#1A2B4A" }}>О центре</h1>
+          <p className="max-w-xl text-body" style={{ color: "#7B2FBE", opacity: 0.85 }}>
             Образовательный центр №5 города Челябинска — учреждение с богатой историей,
             современной инфраструктурой и сильным педагогическим коллективом с 1985 года.
           </p>
@@ -156,10 +156,10 @@ export default function About() {
       <section className="py-16 px-6 lg:px-10">
         <div className="max-w-5xl mx-auto">
           <div className="mb-10">
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground mb-2">
+            <p className="text-ui font-mono uppercase tracking-[0.2em] text-muted-foreground mb-2">
               Результаты работы
             </p>
-            <h2 className="text-3xl lg:text-4xl font-bold">Достижения</h2>
+            <h2 className="text-body font-bold">Достижения</h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -176,10 +176,10 @@ export default function About() {
                   <div className="w-11 h-11 bg-secondary border border-border rounded flex items-center justify-center group-hover:bg-foreground group-hover:text-background transition-colors duration-200">
                     <a.icon className="w-5 h-5" />
                   </div>
-                  <span className="text-2xl font-bold">{a.value}</span>
+                  <span className="text-body font-bold">{a.value}</span>
                 </div>
                 <h3 className="font-bold mb-1">{a.title}</h3>
-                <p className="text-xs text-muted-foreground">{a.desc}</p>
+                <p className="text-ui text-muted-foreground">{a.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -190,7 +190,7 @@ export default function About() {
       <section className="py-16 px-6 lg:px-10 bg-secondary border-t border-border">
         <div className="max-w-5xl mx-auto">
           <div className="mb-10">
-            <h2 className="text-3xl lg:text-4xl font-bold">Галерея</h2>
+            <h2 className="text-heading font-bold" style={{ color: "#1A2B4A" }}>Галерея</h2>
             <p className="text-muted-foreground mt-2">Нажмите на коллекцию, чтобы посмотреть фотографии</p>
           </div>
 
@@ -220,10 +220,10 @@ export default function About() {
                   <div className="absolute bottom-0 left-0 right-0 p-5">
                     <div className="flex items-end justify-between">
                       <div>
-                        <p className="text-white font-bold text-lg leading-tight">{col.title}</p>
-                        <p className="text-white/70 text-xs mt-1">{col.description}</p>
+                        <p className="text-white font-bold text-body leading-tight">{col.title}</p>
+                        <p className="text-white/70 text-ui mt-1">{col.description}</p>
                       </div>
-                      <span className="text-white/60 text-sm font-mono bg-black/30 px-2 py-0.5 rounded">
+                      <span className="text-white/60 text-body font-mono bg-black/30 px-2 py-0.5 rounded">
                         {col.count} фото
                       </span>
                     </div>
@@ -250,10 +250,10 @@ export default function About() {
       <section className="py-16 px-6 lg:px-10 border-t border-border">
         <div className="max-w-5xl mx-auto">
           <div className="mb-12">
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground mb-2">
+            <p className="text-ui font-mono uppercase tracking-[0.2em] text-muted-foreground mb-2">
               Хроника событий
             </p>
-            <h2 className="text-3xl lg:text-4xl font-bold">История центра</h2>
+            <h2 className="text-body font-bold">История центра</h2>
           </div>
 
           <div className="space-y-16">
@@ -270,9 +270,9 @@ export default function About() {
               >
                 <div>
                   <div className="flex items-center gap-4 mb-4">
-                    <span className="text-4xl font-bold text-foreground/20">{item.year}</span>
+                    <span className="text-heading font-bold text-foreground/20">{item.year}</span>
                     <div className="w-px h-8 bg-border" />
-                    <h3 className="text-xl font-bold">{item.title}</h3>
+                    <h3 className="text-body font-bold">{item.title}</h3>
                   </div>
                   <p className="text-muted-foreground leading-relaxed">{item.text}</p>
                 </div>
@@ -308,9 +308,9 @@ export default function About() {
             >
               <div className="flex items-center justify-between px-6 py-5 border-b border-border">
                 <div>
-                  <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Коллекция</p>
-                  <h2 className="font-bold text-lg">{openCollection.title}</h2>
-                  <p className="text-sm text-muted-foreground">{openCollection.description}</p>
+                  <p className="text-ui text-muted-foreground font-mono uppercase tracking-wider">Коллекция</p>
+                  <h2 className="font-bold text-body">{openCollection.title}</h2>
+                  <p className="text-body text-muted-foreground">{openCollection.description}</p>
                 </div>
                 <button
                   onClick={() => setOpenCollection(null)}
@@ -337,7 +337,7 @@ export default function About() {
                       className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-200 flex items-end">
-                      <p className="text-white text-xs px-3 pb-2 translate-y-full group-hover:translate-y-0 transition-transform duration-200">
+                      <p className="text-white text-ui px-3 pb-2 translate-y-full group-hover:translate-y-0 transition-transform duration-200">
                         {photo.caption}
                       </p>
                     </div>
@@ -380,8 +380,8 @@ export default function About() {
                 className="w-full max-h-[75vh] object-contain rounded"
               />
               <div className="mt-3 text-center">
-                <p className="text-white/80 text-sm">{openCollection.photos[lightboxIndex].caption}</p>
-                <p className="text-white/40 text-xs mt-1">{lightboxIndex + 1} / {openCollection.photos.length}</p>
+                <p className="text-white/80 text-body">{openCollection.photos[lightboxIndex].caption}</p>
+                <p className="text-white/40 text-ui mt-1">{lightboxIndex + 1} / {openCollection.photos.length}</p>
               </div>
             </motion.div>
 

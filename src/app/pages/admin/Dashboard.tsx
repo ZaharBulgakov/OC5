@@ -16,7 +16,8 @@ import {
   Search,
   Upload,
   Calendar,
-  ArrowRight
+  ArrowRight,
+  Folders
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import ReactCrop, { type Crop as RicCrop, type PixelCrop, centerCrop, makeAspectCrop } from "react-image-crop";
@@ -53,11 +54,12 @@ interface GalleryCollection {
 interface DocumentItem {
   id: string;
   title: string;
-  category?: string; // Категория теперь опциональна, так как мы ее удалили из UI
+  category?: string;
+  section?: string;
   type: string;
   size: string;
   date: string;
-  url?: string; // Добавляем URL для ссылки на файл
+  url?: string;
   created_at: string;
 }
 
@@ -68,6 +70,12 @@ interface ParentsDocumentItem {
   type: string;
   size: string;
   url: string;
+  created_at: string;
+}
+
+interface DocumentSection {
+  id: string;
+  title: string;
   created_at: string;
 }
 
@@ -146,12 +154,16 @@ function PreviewCanvas({
 }
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<"news" | "gallery" | "documents" | "parents_documents" | "schedule-pdf">("news");
+  const [activeTab, setActiveTab] = useState<"news" | "gallery" | "documents" | "parents_documents" | "schedule-pdf" | "director" | "home">("news");
   const [newsData, setNewsData] = useState<NewsItem[]>([]);
   const [galleryData, setGalleryData] = useState<GalleryItem[]>([]);
   const [collectionsData, setCollectionsData] = useState<GalleryCollection[]>([]);
   const [selectedCollection, setSelectedCollection] = useState<GalleryCollection | null>(null);
   const [documentsData, setDocumentsData] = useState<DocumentItem[]>([]);
+  const [documentSections, setDocumentSections] = useState<DocumentSection[]>([]);
+  const [showSectionManager, setShowSectionManager] = useState(false);
+  const [newSectionTitle, setNewSectionTitle] = useState("");
+  const [sectionSearch, setSectionSearch] = useState("");
   const [parentsDocumentsData, setParentsDocumentsData] = useState<ParentsDocumentItem[]>([]);
   const [schedulePdfUrl, setSchedulePdfUrl] = useState<string | null>(null);
   const [scheduleUploadFile, setScheduleUploadFile] = useState<File | null>(null);
@@ -168,7 +180,30 @@ export default function Dashboard() {
   const [isDragging, setIsDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const newsFileRef = useRef<HTMLInputElement>(null);
+  const directorFileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  // Director state
+  const [directorForm, setDirectorForm] = useState({ name: "", quotes: ["", "", ""], image_url: "" });
+  const [directorSaving, setDirectorSaving] = useState(false);
+  const [directorImageFile, setDirectorImageFile] = useState<File | null>(null);
+  const [directorImagePreview, setDirectorImagePreview] = useState<string | null>(null);
+  const [directorSuccess, setDirectorSuccess] = useState(false);
+
+  // Home hero state
+  const heroFileRef = useRef<HTMLInputElement>(null);
+  const [heroAspect, setHeroAspect] = useState<"16:9" | "9:16">("16:9");
+  const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
+  const [heroImagePreview, setHeroImagePreview] = useState<string | null>(null);
+  const [heroCurrentUrl, setHeroCurrentUrl] = useState<string | null>(null);
+  const [heroSaving, setHeroSaving] = useState(false);
+  const [heroSuccess, setHeroSuccess] = useState(false);
+  const [showHeroCropper, setShowHeroCropper] = useState(false);
+  const [heroCropImage, setHeroCropImage] = useState<string | null>(null);
+  const [heroCrop, setHeroCrop] = useState<RicCrop>();
+  const [heroCompletedCrop, setHeroCompletedCrop] = useState<PixelCrop>();
+  const heroCompletedCropRef = useRef<PixelCrop | undefined>(undefined);
+  const heroImgRef = useRef<HTMLImageElement>(null);
 
   // Cropper states
   const [cropImage, setCropImage] = useState<string | null>(null);
@@ -318,7 +353,8 @@ export default function Dashboard() {
     if (!searchQuery) return documentsData;
     return documentsData.filter(item => 
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.type.toLowerCase().includes(searchQuery.toLowerCase())
+      item.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.section || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [documentsData, searchQuery]);
 
@@ -360,6 +396,11 @@ export default function Dashboard() {
         setNewsData(data as NewsItem[] || []);
       } else if (activeTab === "documents") {
         setDocumentsData(data as DocumentItem[] || []);
+        const { data: sectionsData } = await supabase
+          .from("document_sections")
+          .select("*")
+          .order("title", { ascending: true });
+        setDocumentSections(sectionsData as DocumentSection[] || []);
       } else if (activeTab === "parents_documents") {
         setParentsDocumentsData(data as ParentsDocumentItem[] || []);
       }
@@ -369,6 +410,34 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDataInternal();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === "director") {
+      const fetchDirector = async () => {
+        const { data } = await supabase.from("director_info").select("*").eq("id", 1).single();
+        if (data) {
+          setDirectorForm({
+            name: data.name || "",
+            quotes: Array.isArray(data.quotes) && data.quotes.length > 0 ? data.quotes : ["", "", ""],
+            image_url: data.image_url || "",
+          });
+          setDirectorImagePreview(data.image_url || null);
+        }
+      };
+      fetchDirector();
+    }
+    if (activeTab === "home") {
+      const fetchHero = async () => {
+        const { data } = await supabase.from("site_config").select("*").eq("id", 1).single();
+        if (data) {
+          setHeroAspect(data.hero_aspect === "9:16" ? "9:16" : "16:9");
+          setHeroCurrentUrl(data.hero_image_url || null);
+          setHeroImagePreview(data.hero_image_url || null);
+        }
+      };
+      fetchHero();
+    }
   }, [activeTab]);
 
   useEffect(() => {
@@ -621,7 +690,8 @@ export default function Dashboard() {
             type: uploadForm.type,
             size: uploadForm.size,
             date: dateStr,
-            url: publicUrlData.publicUrl, 
+            url: publicUrlData.publicUrl,
+            section: (itemData.section || "").trim() || null,
           };
         } else {
           itemData = {
@@ -800,6 +870,8 @@ export default function Dashboard() {
             { id: "documents", label: "Документы", icon: FileText },
             { id: "parents_documents", label: "Родителям", icon: Users },
             { id: "schedule-pdf", label: "Расписание PDF", icon: Calendar },
+            { id: "director", label: "Слово директора", icon: Edit3 },
+            { id: "home", label: "Главная страница", icon: LayoutDashboard },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -830,11 +902,13 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-black text-brand-blue-dark">
-              {activeTab === "news" ? "Новости" : activeTab === "gallery" ? "Галерея" : activeTab === "documents" ? "Документы" : activeTab === "parents_documents" ? "Родителям" : "Расписание PDF"}
+              {activeTab === "news" ? "Новости" : activeTab === "gallery" ? "Галерея" : activeTab === "documents" ? "Документы" : activeTab === "parents_documents" ? "Родителям" : activeTab === "director" ? "Слово директора" : activeTab === "home" ? "Главная страница" : "Расписание PDF"}
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">Управление содержимым раздела</p>
           </div>
           <div className="relative w-full sm:w-auto">
+            {activeTab !== "director" && activeTab !== "home" && (
+              <>
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
@@ -851,23 +925,38 @@ export default function Dashboard() {
                 ×
               </button>
             )}
+              </>
+            )}
           </div>
-          <button 
-            onClick={() => { 
-              if (activeTab === "gallery" && !selectedCollection) {
-                setEditingItem({ id: 'new-collection' } as any);
-              } else {
-                setEditingItem(null); 
-              }
-              setUploadFile(null);
-              setOriginalFile(null);
-              setIsModalOpen(true); 
-            }}
-            className="bg-brand-blue-dark text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5 transition-all w-fit"
-          >
-            <Plus className="w-5 h-5" />
-            {activeTab === "gallery" ? (selectedCollection ? "Добавить фото" : "Создать коллекцию") : "Добавить запись"}
-          </button>
+          <div className="flex items-center gap-2 w-fit">
+            {activeTab === "documents" && (
+              <button
+                onClick={() => setShowSectionManager(true)}
+                className="border border-border bg-card text-brand-blue-dark px-5 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-secondary transition-all"
+              >
+                <Folders className="w-5 h-5" />
+                Разделы
+              </button>
+            )}
+            {activeTab !== "director" && activeTab !== "home" && (
+            <button 
+              onClick={() => { 
+                if (activeTab === "gallery" && !selectedCollection) {
+                  setEditingItem({ id: 'new-collection' } as any);
+                } else {
+                  setEditingItem(null); 
+                }
+                setUploadFile(null);
+                setOriginalFile(null);
+                setIsModalOpen(true); 
+              }}
+              className="bg-brand-blue-dark text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5 transition-all w-fit"
+            >
+              <Plus className="w-5 h-5" />
+              {activeTab === "gallery" ? (selectedCollection ? "Добавить фото" : "Создать коллекцию") : "Добавить запись"}
+            </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -1009,38 +1098,65 @@ export default function Dashboard() {
               </div>
             )}
 
-            {activeTab === "documents" && filteredDocumentsData.map((item: DocumentItem) => (
-              <motion.div 
-                layout
-                key={item.id}
-                className="bg-card border border-border p-5 rounded-2xl flex items-center justify-between group hover:shadow-md transition-all"
-              >
-                <div className="flex items-center gap-4">
-                  <div>
-                    <h3 className="font-bold text-brand-blue-dark">{item.title}</h3>
-                    <p className="text-xs text-muted-foreground line-clamp-1">{item.type} ({item.size})</p>
-                  </div>
+            {activeTab === "documents" && (() => {
+              // Group by section, sort sections alphabetically
+              const grouped: Record<string, DocumentItem[]> = {};
+              filteredDocumentsData.forEach(item => {
+                const sec = item.section?.trim() || "Без раздела";
+                if (!grouped[sec]) grouped[sec] = [];
+                grouped[sec].push(item);
+              });
+              const sortedSections = Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b, "ru"));
+              return (
+                <div className="space-y-8">
+                  {sortedSections.map(([section, docs]) => (
+                    <div key={section}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider text-white" style={{ background: "#1A2B4A" }}>
+                          {section}
+                        </div>
+                        <div className="h-px flex-1 bg-border" />
+                        <span className="text-xs text-muted-foreground font-bold">{docs.length} док.</span>
+                      </div>
+                      <div className="grid gap-3">
+                        {docs.sort((a, b) => a.title.localeCompare(b.title, "ru")).map((item: DocumentItem) => (
+                          <motion.div
+                            layout
+                            key={item.id}
+                            className="bg-card border border-border p-5 rounded-2xl flex items-center justify-between group hover:shadow-md transition-all"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div>
+                                <h3 className="font-bold text-brand-blue-dark">{item.title}</h3>
+                                <p className="text-xs text-muted-foreground line-clamp-1">{item.type} ({item.size})</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => {
+                                  setEditingItem(item);
+                                  setUploadFile(null);
+                                  setIsModalOpen(true);
+                                }}
+                                className="p-2 hover:bg-brand-blue-dark/10 text-brand-blue-dark rounded-lg transition-colors"
+                              >
+                                <Edit3 className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(item.id)}
+                                className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
-                    onClick={() => { 
-                      setEditingItem(item); 
-                      setUploadFile(null);
-                      setIsModalOpen(true); 
-                    }}
-                    className="p-2 hover:bg-brand-blue-dark/10 text-brand-blue-dark rounded-lg transition-colors"
-                  >
-                    <Edit3 className="w-5 h-5" />
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(item.id)}
-                    className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+              );
+            })()}
 
             {activeTab === "parents_documents" && filteredParentsDocumentsData.map((item: ParentsDocumentItem) => (
               <motion.div 
@@ -1170,9 +1286,437 @@ export default function Dashboard() {
             )}
           </div>
         )}
+
+        {/* ─── DIRECTOR EDITOR ─── */}
+        {activeTab === "director" && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            {/* Image upload */}
+            <div className="bg-card border border-border rounded-2xl p-6">
+              <h2 className="font-black text-brand-blue-dark mb-4 text-lg">Фото директора</h2>
+              <div className="flex items-start gap-6">
+                <div className="w-40 rounded-xl overflow-hidden border border-border bg-secondary/30 flex-shrink-0 flex items-center justify-center min-h-[60px]">
+                  {directorImagePreview ? (
+                    <img src={directorImagePreview} alt="Директор" className="w-full h-auto block" />
+                  ) : (
+                    <div className="w-full h-24 flex items-center justify-center text-muted-foreground text-sm">Нет фото</div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <input
+                    ref={directorFileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setDirectorImageFile(file);
+                        setDirectorImagePreview(URL.createObjectURL(file));
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => directorFileRef.current?.click()}
+                    className="flex items-center gap-2 px-5 py-3 border-2 border-dashed border-border rounded-xl text-sm font-bold text-muted-foreground hover:border-brand-blue-dark hover:text-brand-blue-dark transition-all"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Загрузить новое фото
+                  </button>
+                  <p className="text-xs text-muted-foreground mt-2">PNG, JPG до 5 МБ. Рекомендуемое соотношение 4:3.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Name */}
+            <div className="bg-card border border-border rounded-2xl p-6">
+              <h2 className="font-black text-brand-blue-dark mb-4 text-lg">ФИО директора</h2>
+              <input
+                type="text"
+                value={directorForm.name}
+                onChange={(e) => setDirectorForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Фамилия Имя Отчество"
+                className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+              />
+            </div>
+
+            {/* Quotes */}
+            <div className="bg-card border border-border rounded-2xl p-6">
+              <h2 className="font-black text-brand-blue-dark mb-4 text-lg">Текст директора</h2>
+              <div className="space-y-3">
+                {directorForm.quotes.map((q, i) => (
+                  <div key={i} className="flex gap-2 items-start">
+                    <span className="mt-3 text-xs font-bold text-muted-foreground w-5 flex-shrink-0">{i + 1}.</span>
+                    <textarea
+                      value={q}
+                      onChange={(e) => {
+                        const updated = [...directorForm.quotes];
+                        updated[i] = e.target.value;
+                        setDirectorForm((f) => ({ ...f, quotes: updated }));
+                      }}
+                      rows={3}
+                      placeholder={`Абзац ${i + 1}...`}
+                      className="flex-1 bg-secondary/50 border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark resize-none"
+                    />
+                    {directorForm.quotes.length > 1 && (
+                      <button
+                        onClick={() => setDirectorForm((f) => ({ ...f, quotes: f.quotes.filter((_, idx) => idx !== i) }))}
+                        className="mt-2 p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-all"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setDirectorForm((f) => ({ ...f, quotes: [...f.quotes, ""] }))}
+                className="mt-3 flex items-center gap-2 text-sm font-bold text-brand-blue-dark hover:underline"
+              >
+                <Plus className="w-4 h-4" />
+                Добавить абзац
+              </button>
+            </div>
+
+            {/* Save */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={async () => {
+                  setDirectorSaving(true);
+                  setDirectorSuccess(false);
+                  try {
+                    let imageUrl = directorForm.image_url;
+                    if (directorImageFile) {
+                      const ext = directorImageFile.name.split(".").pop();
+                      const path = `director/director-${Date.now()}.${ext}`;
+                      const { error: upErr } = await supabase.storage
+                        .from("news")
+                        .upload(path, directorImageFile, { upsert: true });
+                      if (upErr) throw upErr;
+                      const { data: urlData } = supabase.storage.from("news").getPublicUrl(path);
+                      imageUrl = urlData.publicUrl;
+                    }
+                    const { error } = await supabase
+                      .from("director_info")
+                      .upsert({ id: 1, name: directorForm.name, quotes: directorForm.quotes.filter(q => q.trim()), image_url: imageUrl });
+                    if (error) throw error;
+                    setDirectorForm((f) => ({ ...f, image_url: imageUrl }));
+                    setDirectorImageFile(null);
+                    setDirectorSuccess(true);
+                    setTimeout(() => setDirectorSuccess(false), 3000);
+                  } catch (err: any) {
+                    alert("Ошибка при сохранении: " + err.message);
+                  }
+                  setDirectorSaving(false);
+                }}
+                disabled={directorSaving}
+                className="bg-brand-blue-dark text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {directorSaving ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                Сохранить изменения
+              </button>
+              {directorSuccess && (
+                <motion.span
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="text-sm font-bold text-green-600"
+                >
+                  ✓ Сохранено успешно!
+                </motion.span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── HOME HERO EDITOR ─── */}
+        {activeTab === "home" && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            {/* Aspect selector */}
+            <div className="bg-card border border-border rounded-2xl p-6">
+              <h2 className="font-black text-brand-blue-dark mb-1 text-lg">Формат изображения</h2>
+              <p className="text-xs text-muted-foreground mb-4">Определяет, как картинка будет расположена на главной странице</p>
+              <div className="grid grid-cols-2 gap-3">
+                {(["16:9", "9:16"] as const).map((asp) => (
+                  <button
+                    key={asp}
+                    onClick={() => {
+                      if (asp !== heroAspect) {
+                        setHeroAspect(asp);
+                        // Сбрасываем обрезанный файл — нужно перезагрузить фото под новый формат
+                        setHeroImageFile(null);
+                        setHeroImagePreview(heroCurrentUrl);
+                      }
+                    }}
+                    className={`relative flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all ${
+                      heroAspect === asp
+                        ? "border-brand-blue-dark bg-brand-blue-dark/5"
+                        : "border-border hover:border-brand-blue-dark/40"
+                    }`}
+                  >
+                    {/* Visual ratio preview */}
+                    <div className="flex items-center justify-center" style={{ height: 56 }}>
+                      {asp === "16:9" ? (
+                        <div className="rounded" style={{ width: 80, height: 45, background: heroAspect === asp ? "#1A2B4A" : "#e2e8f0" }} />
+                      ) : (
+                        <div className="rounded" style={{ width: 32, height: 56, background: heroAspect === asp ? "#1A2B4A" : "#e2e8f0" }} />
+                      )}
+                    </div>
+                    <div>
+                      <p className={`font-black text-base ${heroAspect === asp ? "text-brand-blue-dark" : "text-foreground"}`}>{asp}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {asp === "16:9" ? "Горизонтальное — фото сверху, текст снизу" : "Вертикальное — текст слева, фото справа"}
+                      </p>
+                    </div>
+                    {heroAspect === asp && (
+                      <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-brand-blue-dark flex items-center justify-center">
+                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Image upload */}
+            <div className="bg-card border border-border rounded-2xl p-6">
+              <h2 className="font-black text-brand-blue-dark mb-1 text-lg">Фотография</h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                Будет обрезана по выбранному формату {heroAspect}
+              </p>
+              {/* Warn if current preview is from old format */}
+              {heroCurrentUrl && !heroImageFile && (
+                <div className="mb-3 px-3 py-2 rounded-lg bg-yellow-50 border border-yellow-200 text-xs text-yellow-800 font-medium">
+                  ⚠ При смене формата загрузите фото заново, чтобы обрезать под {heroAspect}
+                </div>
+              )}
+              <input
+                ref={heroFileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  // Load as blob URL for cropper
+                  const blobUrl = URL.createObjectURL(file);
+                  setHeroImageFile(file);
+                  setHeroCropImage(blobUrl);
+                  setShowHeroCropper(true);
+                  // Reset crop
+                  setHeroCrop(undefined);
+                  setHeroCompletedCrop(undefined);
+                  heroCompletedCropRef.current = undefined;
+                  if (heroFileRef.current) heroFileRef.current.value = "";
+                }}
+              />
+
+              {/* Current preview */}
+              {heroImagePreview && (
+                <div className="mb-4 rounded-xl overflow-hidden border border-border bg-secondary/20">
+                  <img
+                    src={heroImagePreview}
+                    alt="Превью главной"
+                    className="w-full h-auto block"
+                    style={{ maxHeight: 260, objectFit: "cover" }}
+                  />
+                </div>
+              )}
+
+              <button
+                onClick={() => heroFileRef.current?.click()}
+                className="flex items-center gap-2 px-5 py-3 border-2 border-dashed border-border rounded-xl text-sm font-bold text-muted-foreground hover:border-brand-blue-dark hover:text-brand-blue-dark transition-all w-full justify-center"
+              >
+                <Upload className="w-4 h-4" />
+                {heroImagePreview ? "Заменить фотографию" : "Загрузить фотографию"}
+              </button>
+              <p className="text-xs text-muted-foreground mt-2 text-center">PNG, JPG. Рекомендуется высокое разрешение.</p>
+            </div>
+
+            {/* Save */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={async () => {
+                  if (!heroImageFile && !heroCurrentUrl) {
+                    alert("Сначала загрузите изображение");
+                    return;
+                  }
+                  setHeroSaving(true);
+                  setHeroSuccess(false);
+                  try {
+                    let imageUrl = heroCurrentUrl || "";
+                    if (heroImageFile) {
+                      const ext = heroImageFile.name.split(".").pop();
+                      const path = `hero/hero-${Date.now()}.${ext}`;
+                      const { error: upErr } = await supabase.storage
+                        .from("news")
+                        .upload(path, heroImageFile, { upsert: true });
+                      if (upErr) throw upErr;
+                      const { data: urlData } = supabase.storage.from("news").getPublicUrl(path);
+                      imageUrl = urlData.publicUrl;
+                    }
+                    // Try update first, then insert if no row exists
+                    const { data: updateData, error: updateError } = await supabase
+                      .from("site_config")
+                      .update({ hero_image_url: imageUrl, hero_aspect: heroAspect })
+                      .eq("id", 1)
+                      .select();
+                    if (updateError) throw updateError;
+                    if (!updateData || updateData.length === 0) {
+                      const { error: insertError } = await supabase
+                        .from("site_config")
+                        .insert({ id: 1, hero_image_url: imageUrl, hero_aspect: heroAspect });
+                      if (insertError) throw insertError;
+                    }
+                    setHeroCurrentUrl(imageUrl);
+                    setHeroImageFile(null);
+                    setHeroSuccess(true);
+                    setTimeout(() => setHeroSuccess(false), 3000);
+                  } catch (err: any) {
+                    alert("Ошибка при сохранении: " + err.message);
+                  }
+                  setHeroSaving(false);
+                }}
+                disabled={heroSaving}
+                className="bg-brand-blue-dark text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {heroSaving ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                Сохранить изменения
+              </button>
+              {heroSuccess && (
+                <motion.span
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="text-sm font-bold text-green-600"
+                >
+                  ✓ Сохранено успешно!
+                </motion.span>
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
-      {/* Modal */}
+      {/* ─── HERO CROPPER MODAL ─── */}
+      <AnimatePresence>
+        {showHeroCropper && heroCropImage && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { setShowHeroCropper(false); setHeroCropImage(null); setHeroImageFile(null); }}
+              className="absolute inset-0 bg-black/70 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-4xl bg-card border border-border rounded-3xl overflow-hidden flex flex-col"
+              style={{ maxHeight: "90vh" }}
+            >
+              {/* Header */}
+              <div className="p-5 border-b border-border flex items-center justify-between bg-card shrink-0">
+                <div>
+                  <h2 className="text-lg font-black text-brand-blue-dark">Обрезка изображения</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Формат {heroAspect} — выберите нужную область</p>
+                </div>
+                <button onClick={() => { setShowHeroCropper(false); setHeroCropImage(null); setHeroImageFile(null); }} className="p-2 hover:bg-secondary rounded-xl">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Cropper area */}
+              <div className="flex-1 min-h-0 overflow-auto flex items-center justify-center bg-neutral-900 p-6">
+                <ReactCrop
+                  crop={heroCrop}
+                  onChange={(c) => setHeroCrop(c)}
+                  onComplete={(c) => { heroCompletedCropRef.current = c; setHeroCompletedCrop(c); }}
+                  aspect={heroAspect === "16:9" ? 16 / 9 : 9 / 16}
+                >
+                  <img
+                    ref={heroImgRef}
+                    src={heroCropImage}
+                    alt="Crop source"
+                    style={{ display: "block", maxWidth: "100%", maxHeight: "calc(90vh - 220px)", width: "auto", height: "auto" }}
+                    onLoad={(e) => {
+                      const el = e.currentTarget;
+                      const aspect = heroAspect === "16:9" ? 16 / 9 : 9 / 16;
+                      const { width, height } = el;
+                      const newCrop = centerCrop(makeAspectCrop({ unit: "%", width: 90 }, aspect, width, height), width, height);
+                      setHeroCrop(newCrop);
+                      const pxX = (newCrop.x / 100) * width;
+                      const pxY = (newCrop.y / 100) * height;
+                      const pxW = (newCrop.width / 100) * width;
+                      const pxH = (newCrop.height / 100) * height;
+                      const initial: PixelCrop = { unit: "px", x: pxX, y: pxY, width: pxW, height: pxH };
+                      heroCompletedCropRef.current = initial;
+                      setHeroCompletedCrop(initial);
+                    }}
+                  />
+                </ReactCrop>
+              </div>
+
+              {/* Preview + Actions */}
+              <div className="p-5 border-t border-border bg-card flex flex-col sm:flex-row items-center gap-5 shrink-0">
+                {/* Inline preview */}
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className="text-xs font-bold text-muted-foreground uppercase shrink-0">Превью:</span>
+                  <div
+                    className="rounded-lg overflow-hidden border border-border bg-neutral-900 shrink-0"
+                    style={heroAspect === "16:9"
+                      ? { width: 160, height: 90 }
+                      : { width: 56, height: 100 }
+                    }
+                  >
+                    {heroCompletedCrop && heroImgRef.current && (
+                      <PreviewCanvas
+                        imgRef={heroImgRef}
+                        crop={heroCompletedCrop}
+                        aspect={heroAspect === "16:9" ? 16 / 9 : 9 / 16}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-3 ml-auto">
+                  <button
+                    onClick={() => { setShowHeroCropper(false); setHeroCropImage(null); setHeroImageFile(null); }}
+                    className="px-5 py-3 rounded-xl font-bold border border-border hover:bg-secondary transition-all text-sm"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const crop = heroCompletedCropRef.current;
+                        if (!crop || !heroImgRef.current) throw new Error("Выберите область");
+                        const croppedBlob = await getCroppedImg(heroImgRef.current, crop, false);
+                        const file = new File([croppedBlob], `hero-${heroAspect.replace(":", "x")}.jpg`, { type: "image/jpeg" });
+                        setHeroImageFile(file);
+                        setHeroImagePreview(URL.createObjectURL(croppedBlob));
+                        setShowHeroCropper(false);
+                        setHeroCropImage(null);
+                      } catch (err: any) {
+                        alert("Ошибка при обрезке: " + err.message);
+                      }
+                    }}
+                    className="px-6 py-3 bg-brand-blue-dark text-white rounded-xl font-bold flex items-center gap-2 hover:shadow-lg transition-all text-sm"
+                  >
+                    <Save className="w-4 h-4" />
+                    Применить обрезку
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1309,8 +1853,8 @@ export default function Dashboard() {
                   </>
                 )}
 
-                {/* 3. НОВОСТИ: ОБЩИЙ ЗАГОЛОВОК (ТОЛЬКО ДЛЯ НОВОСТЕЙ И ДОКУМЕНТОВ) */}
-                { (activeTab === "news" || ((activeTab === "documents" || activeTab === "parents_documents") && editingItem !== null)) && (
+                {/* 3. НОВОСТИ: ОБЩИЙ ЗАГОЛОВОК (ТОЛЬКО ДЛЯ НОВОСТЕЙ) */}
+                { activeTab === "news" && (
                   <div className="space-y-2">
                     <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Заголовок</label>
                     <input 
@@ -1401,6 +1945,35 @@ export default function Dashboard() {
 
                 {(activeTab === "documents" || activeTab === "parents_documents") && editingItem === null && (
                   <>
+                    {activeTab === "documents" && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          Раздел <span className="normal-case text-muted-foreground/60 font-normal">(для группировки)</span>
+                        </label>
+                        <select
+                          name="section"
+                          className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                        >
+                          <option value="">— Без раздела —</option>
+                          {documentSections.map((sec) => (
+                            <option key={sec.id} value={sec.title}>{sec.title}</option>
+                          ))}
+                        </select>
+                        {documentSections.length === 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Нет разделов.{" "}
+                            <button
+                              type="button"
+                              onClick={() => { setIsModalOpen(false); setShowSectionManager(true); }}
+                              className="text-brand-blue-dark font-bold hover:underline"
+                            >
+                              Создайте раздел
+                            </button>{" "}
+                            перед добавлением документа.
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <div>
                       <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wider">
                         Файл
@@ -1459,36 +2032,22 @@ export default function Dashboard() {
                     </div>
                   </>
                 )}
-                {(activeTab === "documents" || activeTab === "parents_documents") && editingItem !== null && (
-                  <>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Заголовок</label>
-                      <input
-                        name="title"
-                        defaultValue={(editingItem as any).title}
-                        required
-                        className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Тип (PDF/DOC)</label>
-                      <input
-                        name="type"
-                        defaultValue={(editingItem as any).type || "PDF"}
-                        required
-                        className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Размер</label>
-                      <input
-                        name="size"
-                        defaultValue={(editingItem as any).size}
-                        required
-                        className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
-                      />
-                    </div>
-                  </>
+                {activeTab === "documents" && editingItem !== null && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Раздел <span className="normal-case text-muted-foreground/60 font-normal">(для группировки)</span>
+                    </label>
+                    <select
+                      name="section"
+                      defaultValue={(editingItem as DocumentItem).section || ""}
+                      className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                    >
+                      <option value="">— Без раздела —</option>
+                      {documentSections.map((sec) => (
+                        <option key={sec.id} value={sec.title}>{sec.title}</option>
+                      ))}
+                    </select>
+                  </div>
                 )}
 
                 <button 
@@ -1716,6 +2275,142 @@ export default function Dashboard() {
                     </button>
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Section Manager Modal */}
+      <AnimatePresence>
+        {showSectionManager && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { setShowSectionManager(false); setSectionSearch(""); }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-card border border-border rounded-3xl shadow-2xl p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-black text-brand-blue-dark">Разделы документов</h2>
+                <button onClick={() => { setShowSectionManager(false); setSectionSearch(""); }} className="p-2 hover:bg-secondary rounded-xl">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* New section input */}
+              <div className="flex gap-2 mb-4">
+                <input
+                  value={newSectionTitle}
+                  onChange={(e) => setNewSectionTitle(e.target.value)}
+                  placeholder="Название нового раздела..."
+                  className="flex-1 bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                  onKeyDown={async (e) => {
+                    if (e.key === "Enter" && newSectionTitle.trim()) {
+                      const { data, error } = await supabase
+                        .from("document_sections")
+                        .insert([{ title: newSectionTitle.trim() }])
+                        .select();
+                      if (!error && data) {
+                        setDocumentSections((prev) =>
+                          [...prev, data[0] as DocumentSection].sort((a, b) => a.title.localeCompare(b.title, "ru"))
+                        );
+                        setNewSectionTitle("");
+                      } else if (error) {
+                        alert("Ошибка при создании раздела: " + error.message);
+                      }
+                    }
+                  }}
+                />
+                <button
+                  onClick={async () => {
+                    if (!newSectionTitle.trim()) return;
+                    const { data, error } = await supabase
+                      .from("document_sections")
+                      .insert([{ title: newSectionTitle.trim() }])
+                      .select();
+                    if (!error && data) {
+                      setDocumentSections((prev) =>
+                        [...prev, data[0] as DocumentSection].sort((a, b) => a.title.localeCompare(b.title, "ru"))
+                      );
+                      setNewSectionTitle("");
+                    } else if (error) {
+                      alert("Ошибка при создании раздела: " + error.message);
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-brand-blue-dark text-white rounded-xl font-bold hover:bg-brand-blue-dark/80 hover:shadow-lg transition-all flex items-center gap-1"
+                >
+                  <Plus className="w-4 h-4" />
+                  Создать
+                </button>
+              </div>
+
+              {/* Search sections */}
+              {documentSections.length > 0 && (
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Поиск по разделам..."
+                    value={sectionSearch}
+                    onChange={(e) => setSectionSearch(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-secondary/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                  />
+                </div>
+              )}
+
+              {/* Sections list */}
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {documentSections.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">Разделов пока нет. Создайте первый!</p>
+                ) : (
+                  (() => {
+                    const filtered = sectionSearch
+                      ? documentSections.filter((s) => s.title.toLowerCase().includes(sectionSearch.toLowerCase()))
+                      : documentSections;
+                    if (filtered.length === 0) {
+                      return <p className="text-sm text-muted-foreground text-center py-6">Ничего не найдено</p>;
+                    }
+                    return filtered.map((sec) => (
+                      <div
+                        key={sec.id}
+                        className="flex items-center justify-between bg-secondary/50 border border-border rounded-xl px-4 py-3 group hover:bg-brand-blue-dark/5 hover:border-brand-blue-dark/30 transition-all"
+                      >
+                        <span className="text-sm font-bold text-brand-blue-dark">{sec.title}</span>
+                        <button
+                          onClick={async () => {
+                            const docsInSection = documentsData.filter(
+                              (d) => (d.section || "").trim() === sec.title.trim()
+                            );
+                            if (docsInSection.length > 0) {
+                              if (!confirm(`В разделе "${sec.title}" есть ${docsInSection.length} документ(ов). После удаления они останутся без раздела. Продолжить?`)) return;
+                            } else {
+                              if (!confirm(`Удалить раздел "${sec.title}"?`)) return;
+                            }
+                            const { error } = await supabase
+                              .from("document_sections")
+                              .delete()
+                              .eq("id", sec.id);
+                            if (!error) {
+                              setDocumentSections((prev) => prev.filter((s) => s.id !== sec.id));
+                            } else {
+                              alert("Ошибка при удалении раздела: " + error.message);
+                            }
+                          }}
+                          className="p-1.5 opacity-0 group-hover:opacity-100 bg-transparent hover:bg-destructive/10 text-destructive rounded-lg transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ));
+                  })()
+                )}
               </div>
             </motion.div>
           </div>

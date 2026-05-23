@@ -15,6 +15,12 @@ interface QA {
   answer: string;
 }
 
+interface RouteColor { bg: string; text: string; }
+
+interface ChatBotProps {
+  routeColor?: RouteColor;
+}
+
 const LOCAL_QA_DATABASE: QA[] = [
   {
     question: "Как узнать расписание занятий?",
@@ -66,7 +72,7 @@ function getSimilarity(s1: string, s2: string): number {
   return maxLength === 0 ? 1 : (maxLength - distance) / maxLength;
 }
 
-export default function ChatBot() {
+export default function ChatBot({ routeColor = { bg: "#1A2B4A", text: "#ffffff" } }: ChatBotProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
@@ -158,21 +164,21 @@ export default function ChatBot() {
             className="absolute bottom-16 right-0 w-80 sm:w-96 h-[500px] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="p-4 bg-primary text-primary-foreground flex items-center justify-between">
+            <div className="p-4 flex items-center justify-between" style={{ background: routeColor.bg, color: routeColor.text }}>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-white" />
+                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `${routeColor.text}30` }}>
+                  <Bot className="w-5 h-5" style={{ color: routeColor.text }} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold leading-none">Помощник ОЦ5</p>
-                  <p className="text-[10px] opacity-70 mt-1">Онлайн-поддержка</p>
+                  <p className="text-sm font-bold leading-none" style={{ color: routeColor.text }}>Помощник ОЦ5</p>
+                  <p className="text-[10px] mt-1" style={{ color: `${routeColor.text}99` }}>Онлайн-поддержка</p>
                 </div>
               </div>
               <button 
                 onClick={() => setIsOpen(false)}
-                className="p-1 hover:bg-white/10 rounded transition-colors"
+                className="p-1 rounded transition-colors hover:opacity-70"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" style={{ color: routeColor.text }} />
               </button>
             </div>
 
@@ -187,14 +193,15 @@ export default function ChatBot() {
                   className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div className={`flex gap-2 max-w-[85%] ${m.sender === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center ${m.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                    <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center`}
+                      style={m.sender === 'user' ? { background: routeColor.bg, color: routeColor.text } : { background: 'var(--muted)', color: 'var(--muted-foreground)' }}>
                       {m.sender === 'user' ? <UserIcon className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
                     </div>
                     <div className={`p-3 rounded-2xl text-sm ${
                       m.sender === 'user' 
-                        ? 'bg-primary text-primary-foreground rounded-tr-none' 
+                        ? 'rounded-tr-none' 
                         : 'bg-card border border-border rounded-tl-none'
-                    }`}>
+                    }`} style={m.sender === 'user' ? { background: routeColor.bg, color: routeColor.text } : {}}>
                       {m.text}
                     </div>
                   </div>
@@ -225,12 +232,14 @@ export default function ChatBot() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Задайте ваш вопрос..."
-                  className="flex-1 bg-secondary border-none rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
+                  className="flex-1 bg-secondary border-none rounded-full px-4 py-2 text-sm outline-none transition-all"
+                  style={{ '--tw-ring-color': routeColor.bg } as React.CSSProperties}
                 />
                 <button
                   type="submit"
                   disabled={!input.trim()}
-                  className="w-10 h-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="w-10 h-10 rounded-full flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-50"
+                  style={{ background: routeColor.bg, color: routeColor.text }}
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -243,9 +252,11 @@ export default function ChatBot() {
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
-          isOpen ? 'bg-card border border-border rotate-90' : 'bg-primary text-primary-foreground hover:scale-110'
-        }`}
+        className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110"
+        style={isOpen
+          ? { background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--foreground)' }
+          : { background: routeColor.bg, color: routeColor.text }
+        }
       >
         {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
       </button>

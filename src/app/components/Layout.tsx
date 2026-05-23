@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import {
   Menu, X, Eye,
   Home, Info, FileText, GraduationCap, Users, Phone,
@@ -10,14 +10,17 @@ import { motion, AnimatePresence } from "motion/react";
 import ChatBot from "./ChatBot";
 import logoImg from "./logo.png";
 
+export interface RouteColor { bg: string; text: string; }
+export const RouteColorContext = createContext<RouteColor>({ bg: "#1A2B4A", text: "#ffffff" });
+
 
 const navItems = [
   { name: "Главная", path: "/", icon: Home, color: "bg-brand-blue-dark", text: "text-brand-blue-dark", activeStyle: { background: "#F5C200", color: "#1A2B4A" } },
-  { name: "О центре", path: "/about", icon: Info, color: "bg-brand-pink", text: "text-brand-pink", activeStyle: null },
-  { name: "Документы", path: "/documents", icon: FileText, color: "bg-brand-purple", text: "text-brand-purple", activeStyle: null },
-  { name: "Школьникам", path: "/students", icon: GraduationCap, color: "bg-brand-blue-med", text: "text-brand-blue-med", activeStyle: null },
-  { name: "Родителям", path: "/parents", icon: Users, color: "bg-brand-orange", text: "text-brand-orange", activeStyle: null },
-  { name: "Контакты", path: "/contacts", icon: Phone, color: "bg-brand-maroon", text: "text-brand-maroon", activeStyle: null },
+  { name: "О центре", path: "/about", icon: Info, color: "bg-brand-pink", text: "text-brand-pink", activeStyle: { background: "#7B2FBE", color: "#ffffff" } },
+  { name: "Документы", path: "/documents", icon: FileText, color: "bg-brand-purple", text: "text-brand-purple", activeStyle: { background: "#E8450A", color: "#ffffff" } },
+  { name: "Школьникам", path: "/students", icon: GraduationCap, color: "bg-brand-blue-med", text: "text-brand-blue-med", activeStyle: { background: "#2D6FD4", color: "#ffffff" } },
+  { name: "Родителям", path: "/parents", icon: Users, color: "bg-brand-orange", text: "text-brand-orange", activeStyle: { background: "#D91E6E", color: "#ffffff" } },
+  { name: "Контакты", path: "/contacts", icon: Phone, color: "bg-brand-maroon", text: "text-brand-maroon", activeStyle: { background: "#1ABCB0", color: "#ffffff" } },
 ];
 
 interface AuthUser {
@@ -34,6 +37,8 @@ export default function Layout() {
   const [visionPanel, setVisionPanel] = useState(false);
   const [fontSize, setFontSize] = useState(100);
   const [colorScheme, setColorScheme] = useState<ColorScheme>("white");
+  const [hideImages, setHideImages] = useState(false);
+  const [speechMode, setSpeechMode] = useState(false);
   const location = useLocation();
 
   // Apply vision settings — font size goes on <body>, not <html>, to avoid breaking rem
@@ -44,9 +49,44 @@ export default function Layout() {
     if (colorScheme !== "white") html.classList.add(`vi-${colorScheme}`);
   }, [fontSize, colorScheme]);
 
+  // Hide/show images
+  useEffect(() => {
+    const style = document.getElementById("vi-hide-images") || document.createElement("style");
+    style.id = "vi-hide-images";
+    style.textContent = hideImages ? "img { visibility: hidden !important; }" : "";
+    if (!document.getElementById("vi-hide-images")) document.head.appendChild(style);
+  }, [hideImages]);
+
+  // Speech on hover
+  useEffect(() => {
+    if (!("speechSynthesis" in window)) return;
+    const speak = (e: MouseEvent) => {
+      const el = e.target as HTMLElement;
+      const text = el.innerText?.trim();
+      if (!text || text.length < 2) return;
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.lang = "ru-RU";
+      utt.rate = 0.9;
+      window.speechSynthesis.speak(utt);
+    };
+    const stop = () => window.speechSynthesis.cancel();
+    if (speechMode) {
+      document.addEventListener("mouseover", speak);
+      document.addEventListener("mouseout", stop);
+    }
+    return () => {
+      document.removeEventListener("mouseover", speak);
+      document.removeEventListener("mouseout", stop);
+      window.speechSynthesis.cancel();
+    };
+  }, [speechMode]);
+
   const resetVision = () => {
     setFontSize(100);
     setColorScheme("white");
+    setHideImages(false);
+    setSpeechMode(false);
     document.body.style.fontSize = "";
     document.documentElement.classList.remove("vi-white", "vi-black", "vi-blue");
   };
@@ -55,7 +95,19 @@ export default function Layout() {
     setSidebarOpen(false);
   }, [location]);
 
+  const currentNavItem = navItems.find(item =>
+    item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path)
+  );
+  const routeColor: RouteColor = currentNavItem
+    ? { bg: currentNavItem.activeStyle.background, text: currentNavItem.activeStyle.color }
+    : { bg: "#1A2B4A", text: "#ffffff" };
+
+  // Используем routeColor.text как цвет кнопок — он уже контрастен к routeColor.bg,
+  // и на белом хедере тоже читается (тёмный на светлом, или насыщенный на белом)
+  const btnColor = routeColor.text === "#ffffff" ? routeColor.bg : routeColor.text;
+
   return (
+    <RouteColorContext.Provider value={routeColor}>
     <div className="min-h-screen flex flex-col bg-background">
       <style>{`
         html.vi-black { filter: invert(1) hue-rotate(180deg); }
@@ -119,7 +171,27 @@ export default function Layout() {
 
               <div className="h-5 w-px bg-gray-300" />
 
-              {/* Reset */}
+              {/* Hide images */}
+              <button
+                onClick={() => setHideImages(v => !v)}
+                title={hideImages ? "Показать изображения" : "Скрыть изображения"}
+                className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider border rounded-full px-3 py-1 transition-all ${hideImages ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-200"}`}
+              >
+                {hideImages ? "🖼 Вкл. картинки" : "🚫 Без картинок"}
+              </button>
+
+              <div className="h-5 w-px bg-gray-300" />
+
+              {/* Speech mode */}
+              <button
+                onClick={() => setSpeechMode(v => !v)}
+                title={speechMode ? "Выключить озвучку" : "Озвучивать текст при наведении"}
+                className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider border rounded-full px-3 py-1 transition-all ${speechMode ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-200"}`}
+              >
+                {speechMode ? "🔊 Озвучка вкл." : "🔇 Озвучка"}
+              </button>
+
+              <div className="h-5 w-px bg-gray-300" />
               <button onClick={resetVision} className="text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-gray-800 transition-colors border border-gray-300 rounded-full px-3 py-1 bg-white hover:bg-gray-200">
                 Сбросить
               </button>
@@ -170,7 +242,10 @@ export default function Layout() {
           {/* Vision button */}
           <button
             onClick={() => setVisionPanel(!visionPanel)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wider border rounded-full transition-all ${visionPanel ? "bg-brand-blue-dark text-white border-brand-blue-dark" : "bg-brand-blue-dark/5 text-brand-blue-dark border-brand-blue-dark/20 hover:bg-brand-blue-dark hover:text-white"}`}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wider border rounded-full transition-all"
+            style={{ background: routeColor.bg, color: routeColor.text, border: 'none', opacity: visionPanel ? 1 : 0.9 }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.9'; }}
             title="Версия для слабовидящих"
           >
             <Eye className="w-4 h-4" />
@@ -180,7 +255,10 @@ export default function Layout() {
           {/* Support button */}
           <button
             onClick={() => setSupportModal(true)}
-            className="hidden sm:flex items-center gap-1.5 px-4 py-2 text-xs font-bold uppercase tracking-wider bg-brand-blue-dark/5 text-brand-blue-dark border border-brand-blue-dark/20 rounded-full hover:bg-brand-blue-dark hover:text-white transition-all"
+            className="hidden sm:flex items-center gap-1.5 px-4 py-2 text-xs font-bold uppercase tracking-wider border rounded-full transition-all"
+            style={{ background: routeColor.bg, color: routeColor.text, border: 'none', opacity: 0.9 }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.9'; }}
             title="Поддержка"
           >
             <HelpCircle className="w-4 h-4" />
@@ -230,13 +308,13 @@ export default function Layout() {
                     }
                   `}
                 >
-                  <item.icon className={`w-4 h-4 flex-shrink-0`} style={isActive && item.activeStyle ? { color: "#1A2B4A" } : isActive ? { color: "white" } : {}} />
-                  <span className="text-sm font-medium" style={isActive && item.activeStyle ? { color: "#1A2B4A" } : isActive ? { color: "white" } : {}}>{item.name}</span>
+                  <item.icon className={`w-4 h-4 flex-shrink-0`} style={isActive && item.activeStyle ? { color: item.activeStyle.color } : isActive ? { color: "white" } : {}} />
+                  <span className="text-sm font-medium" style={isActive && item.activeStyle ? { color: item.activeStyle.color } : isActive ? { color: "white" } : {}}>{item.name}</span>
                   {isActive && (
                     <motion.span
                       layoutId="active-nav"
                       className="ml-auto w-1.5 h-1.5 rounded-full"
-                      style={item.activeStyle ? { background: "#1A2B4A" } : { background: "white" }}
+                      style={item.activeStyle ? { background: item.activeStyle.color } : { background: "white" }}
                     />
                   )}
                 </Link>
@@ -249,9 +327,6 @@ export default function Layout() {
             <p className="font-semibold text-foreground text-xs">Режим работы:</p>
             <p>Пн–Пт: 8:00 – 18:00</p>
             <p>Сб: 9:00 – 14:00</p>
-            <p className="pt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-              Версия 2.1.0 · 2026
-            </p>
           </div>
         </aside>
 
@@ -262,7 +337,7 @@ export default function Layout() {
           </main>
 
           {/* ─── FOOTER ─── */}
-          <footer className="bg-brand-blue-dark text-white relative overflow-hidden">
+          <footer className="relative overflow-hidden" style={{ background: routeColor.bg, color: routeColor.text }}>
             {/* Decorative circles */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-brand-pink/10 rounded-full translate-x-1/2 -translate-y-1/2 blur-3xl" />
             <div className="absolute bottom-0 left-0 w-96 h-96 bg-brand-purple/10 rounded-full -translate-x-1/2 translate-y-1/2 blur-3xl" />
@@ -271,41 +346,41 @@ export default function Layout() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
                 {/* Col 1 – Contacts */}
                 <div>
-                  <h3 className="text-white font-black mb-6 pb-2 border-b-2 border-brand-pink/30 text-xs uppercase tracking-[0.2em]">
+                  <h3 className="font-black mb-6 pb-2 text-xs uppercase tracking-[0.2em]" style={{ color: routeColor.text, borderBottom: `2px solid ${routeColor.text}60` }}>
                     Контакты
                   </h3>
-                  <ul className="space-y-4 text-sm text-white/80">
-                    <li className="flex items-start gap-3 group">
-                      <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center group-hover:bg-brand-pink transition-colors">
-                        <MapPin className="w-4 h-4 text-white" />
+                  <ul className="space-y-4 text-sm" style={{ color: `${routeColor.text}FF` }}>
+                    <li className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${routeColor.text}35` }}>
+                        <MapPin className="w-4 h-4" style={{ color: routeColor.text }} />
                       </div>
                       <span className="pt-1 leading-relaxed">454000, г. Челябинск, ул. Образовательная, д. 5</span>
                     </li>
-                    <li className="flex items-center gap-3 group">
-                      <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center group-hover:bg-brand-orange transition-colors">
-                        <Phone className="w-4 h-4 text-white" />
+                    <li className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${routeColor.text}35` }}>
+                        <Phone className="w-4 h-4" style={{ color: routeColor.text }} />
                       </div>
-                      <a href="tel:+73512000005" className="hover:text-white transition-colors">+7 (351) 200-00-05</a>
+                      <a href="tel:+73512000005" style={{ color: `${routeColor.text}FF` }}>+7 (351) 200-00-05</a>
                     </li>
-                    <li className="flex items-center gap-3 group">
-                      <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center group-hover:bg-brand-blue-med transition-colors">
-                        <Mail className="w-4 h-4 text-white" />
+                    <li className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${routeColor.text}35` }}>
+                        <Mail className="w-4 h-4" style={{ color: routeColor.text }} />
                       </div>
-                      <a href="mailto:info@oc5-chel.ru" className="hover:text-white transition-colors">info@oc5-chel.ru</a>
+                      <a href="mailto:info@oc5-chel.ru" style={{ color: `${routeColor.text}FF` }}>info@oc5-chel.ru</a>
                     </li>
                   </ul>
                 </div>
 
                 {/* Col 2 – Navigation */}
                 <div>
-                  <h3 className="text-white font-black mb-6 pb-2 border-b-2 border-brand-yellow/30 text-xs uppercase tracking-[0.2em]">
+                  <h3 className="font-black mb-6 pb-2 text-xs uppercase tracking-[0.2em]" style={{ color: routeColor.text, borderBottom: `2px solid ${routeColor.text}60` }}>
                     Навигация
                   </h3>
-                  <ul className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm text-white/80">
+                  <ul className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm" style={{ color: `${routeColor.text}FF` }}>
                     {navItems.map((item) => (
                       <li key={item.path}>
-                        <Link to={item.path} className="hover:text-white transition-colors flex items-center gap-2 group">
-                          <span className={`w-1.5 h-1.5 rounded-full ${item.color} group-hover:scale-150 transition-transform`} />
+                        <Link to={item.path} className="flex items-center gap-2 hover:opacity-100 transition-opacity" style={{ color: `${routeColor.text}FF` }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: routeColor.text }} />
                           {item.name}
                         </Link>
                       </li>
@@ -315,38 +390,25 @@ export default function Layout() {
 
                 {/* Col 3 – Socials + info */}
                 <div>
-                  <h3 className="text-white font-black mb-6 pb-2 border-b-2 border-brand-purple/30 text-xs uppercase tracking-[0.2em]">
+                  <h3 className="font-black mb-6 pb-2 text-xs uppercase tracking-[0.2em]" style={{ color: routeColor.text, borderBottom: `2px solid ${routeColor.text}60` }}>
                     Мы в сети
                   </h3>
                   <div className="flex flex-wrap gap-3 mb-8">
-                    <a
-                      href="https://vk.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 bg-[#4C75A3] px-5 py-2.5 rounded-full hover:scale-105 transition-all text-xs font-bold shadow-lg"
-                    >
-                      <VKIcon className="w-4 h-4" />
-                      <span>ВКонтакте</span>
+                    <a href="https://vk.com" target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 bg-[#4C75A3] px-5 py-2.5 rounded-full hover:scale-105 transition-all text-xs font-bold shadow-lg text-white">
+                      <VKIcon className="w-4 h-4" /><span>ВКонтакте</span>
                     </a>
-                    <a
-                      href="https://ok.ru"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 bg-[#ED812B] px-5 py-2.5 rounded-full hover:scale-105 transition-all text-xs font-bold shadow-lg"
-                    >
-                      <OKIcon className="w-4 h-4" />
-                      <span>Одноклассники</span>
+                    <a href="https://ok.ru" target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 bg-[#ED812B] px-5 py-2.5 rounded-full hover:scale-105 transition-all text-xs font-bold shadow-lg text-white">
+                      <OKIcon className="w-4 h-4" /><span>Одноклассники</span>
                     </a>
                   </div>
-                  <ul className="space-y-3 text-[11px] text-white/50 font-bold uppercase tracking-wider">
-                    <li><Link to="/documents" className="hover:text-white transition-colors">Устав учреждения</Link></li>
-                    <li><Link to="/documents" className="hover:text-white transition-colors">Политика конфиденциальности</Link></li>
-                  </ul>
                 </div>
               </div>
 
               {/* Copyright */}
-              <div className="border-t border-white/10 pt-10 flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] uppercase tracking-[0.2em] text-white/40 text-center sm:text-left font-bold">
+              <div className="pt-10 flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] uppercase tracking-[0.2em] text-center sm:text-left font-bold"
+                style={{ borderTop: `2px solid ${routeColor.text}60`, color: `${routeColor.text}100` }}>
                 <p>© 2026 Образовательный центр №5, г. Челябинск. Все права защищены.</p>
                 <div className="flex gap-4">
                   <div className="w-2 h-2 bg-brand-yellow rounded-full" />
@@ -361,7 +423,7 @@ export default function Layout() {
       </div>
 
       {/* ─── CHAT BOT ─── */}
-      <ChatBot />
+      <ChatBot routeColor={routeColor} />
 
       {/* ─── SUPPORT MODAL ─── */}
       <AnimatePresence>
@@ -413,5 +475,6 @@ export default function Layout() {
         )}
       </AnimatePresence>
     </div>
+    </RouteColorContext.Provider>
   );
 }

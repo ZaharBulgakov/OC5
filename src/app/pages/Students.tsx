@@ -2,7 +2,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { useState, useEffect } from "react";
 import { Calendar, BookOpen, Music,
   X, Download, ChevronRight, CheckCircle2 } from "lucide-react";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { supabase } from "../lib/supabase";
 
 interface ScheduleConfig {
@@ -37,12 +36,12 @@ const sections: Section[] = [
             href={pdfUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-brand-blue-dark text-white px-5 py-2.5 rounded-full text-sm hover:shadow-lg transition-all font-bold uppercase tracking-wider"
+            className="inline-flex items-center gap-2 bg-brand-blue-dark text-white px-5 py-2.5 rounded-full text-body hover:shadow-lg transition-all font-bold uppercase tracking-wider"
           >
             <Download className="w-4 h-4" /> Скачать расписание (PDF)
           </a>
         ) : (
-          <p className="text-muted-foreground text-sm">PDF-файл расписания пока не загружен.</p>
+          <p className="text-muted-foreground text-body">PDF-файл расписания пока не загружен.</p>
         )}
       </div>
     ),
@@ -66,9 +65,9 @@ const sections: Section[] = [
               { g: "10–11 классы", b: "Деловой костюм тёмно-серого или чёрного цвета, белая рубашка/блузка", g2: "Торжественный вариант обязателен на 1 сентября" },
             ].map((item) => (
               <div key={item.g} className="border border-border rounded p-4 bg-secondary">
-                <p className="font-semibold text-sm mb-2">{item.g}</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">{item.b}</p>
-                {item.g2 && <p className="text-xs text-muted-foreground mt-1 italic">{item.g2}</p>}
+                <p className="font-semibold text-body mb-2">{item.g}</p>
+                <p className="text-ui text-muted-foreground leading-relaxed">{item.b}</p>
+                {item.g2 && <p className="text-ui text-muted-foreground mt-1 italic">{item.g2}</p>}
               </div>
             ))}
           </div>
@@ -86,8 +85,8 @@ const sections: Section[] = [
               { sub: "Английский язык", publisher: "Pearson / Просвещение, 2025" },
             ].map((b) => (
               <div key={b.sub} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <span className="text-sm font-medium">{b.sub}</span>
-                <span className="text-xs text-muted-foreground">{b.publisher}</span>
+                <span className="text-body font-medium">{b.sub}</span>
+                <span className="text-ui text-muted-foreground">{b.publisher}</span>
               </div>
             ))}
           </div>
@@ -105,7 +104,7 @@ const sections: Section[] = [
     desc: "Более 30 направлений внеурочной деятельности для всестороннего развития.",
     modalContent: () => (
       <div className="space-y-5">
-        <p className="text-muted-foreground text-sm leading-relaxed">
+        <p className="text-muted-foreground text-body leading-relaxed">
           Внеурочная деятельность включена в образовательную программу и проводится бесплатно для всех учеников.
           Запись осуществляется в начале каждого учебного года через классного руководителя.
         </p>
@@ -117,10 +116,10 @@ const sections: Section[] = [
             { cat: "Общественная деятельность", items: ["Движение Первых (Пн 14:30)", "Школьный совет (Ср 15:30)", "Волонтёрский отряд (Пт 14:30)", "Дебатный клуб (Вт 16:00)"] },
           ].map((g) => (
             <div key={g.cat} className="border border-border rounded p-4 bg-secondary">
-              <p className="font-semibold text-sm mb-3">{g.cat}</p>
+              <p className="font-semibold text-body mb-3">{g.cat}</p>
               <ul className="space-y-1.5">
                 {g.items.map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <li key={item} className="flex items-start gap-2 text-ui text-muted-foreground">
                     <CheckCircle2 className="w-3.5 h-3.5 text-foreground flex-shrink-0 mt-0.5" />
                     {item}
                   </li>
@@ -161,62 +160,24 @@ export default function Students() {
 
   return (
     <div>
-      {/* ─── HERO BANNER ─── */}
-      <section className="border-b border-border overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-brand-blue-dark/5 -skew-x-12 translate-x-1/4 pointer-events-none" />
-        <div className="grid lg:grid-cols-[60%_40%] min-h-[400px] relative z-10">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4 }}
-            className="flex flex-col justify-center px-12 py-20 text-white"
-            style={{ background: "#2D6FD4" }}
-          >
-            <span className="text-xs font-black uppercase tracking-[0.3em] mb-6" style={{ color: "#A8CFFF" }}>
-              Учебный процесс
-            </span>
-            <h1 className="text-4xl lg:text-6xl font-black mb-8 leading-tight">
-              ВСЁ ДЛЯ УСПЕШНОЙ<br />УЧЁБЫ
-            </h1>
-            <p className="text-white/70 text-lg max-w-md leading-relaxed mb-10">
-              Расписание, меню, дополнительные занятия и электронные сервисы — 
-              всё, что нужно школьнику каждый день, собрано в одном месте.
+      {/* ─── PAGE HEADER ─── */}
+      <section className="py-14 px-6 lg:px-10 border-b border-border" style={{ background: "#EFF5FF" }}>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-5xl mx-auto flex flex-col gap-4"
+        >
+          <div>
+            <h1 className="text-heading font-bold mb-4" style={{ color: "#1A2B4A" }}>Школьникам</h1>
+            <p className="max-w-md text-body" style={{ color: "#2D6FD4", opacity: 0.85 }}>
+              Расписание, учебники, кружки и секции — всё в одном месте
             </p>
-            <div className="flex flex-wrap gap-4 mb-10">
-              <a
-                href="tel:+73512000007"
-                className="px-6 py-3 rounded-full text-sm font-black uppercase tracking-widest hover:shadow-lg hover:-translate-y-0.5 transition-all"
-                style={{ background: "#F5C200", color: "#1A2B4A" }}
-              >
-                Связаться с куратором
-              </a>
-              <a
-                href="tel:+73512000008"
-                className="px-6 py-3 border-2 border-white/30 text-white rounded-full text-sm font-black uppercase tracking-widest hover:bg-white/10 hover:border-white transition-all"
-              >
-                Психолог
-              </a>
-            </div>
-            <div className="flex gap-4">
-              <div className="w-12 h-1 rounded-full" style={{ background: "#A8CFFF" }} />
-              <div className="w-12 h-1 rounded-full" style={{ background: "#F5C200" }} />
-              <div className="w-12 h-1 bg-white/30 rounded-full" />
-            </div>
-          </motion.div>
-
-          <div className="relative overflow-hidden group">
-            <div className="absolute inset-0 bg-brand-blue-dark/20 mix-blend-multiply group-hover:bg-transparent transition-colors duration-500" />
-            <ImageWithFallback
-              src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800"
-              alt="Студенты ОЦ №5"
-              className="w-full h-full object-cover grayscale-[30%] group-hover:grayscale-0 transition-all duration-700 scale-110 group-hover:scale-100"
-            />
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ─── QUICK CARDS ─── */}
-      <section className="py-20 px-6 lg:px-12" style={{ background: "#EFF5FF" }}>
+      <section className="py-20 px-6 lg:px-12 bg-card">
         <div className="max-w-6xl mx-auto">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {sections.map((s, i) => (
@@ -234,11 +195,11 @@ export default function Students() {
                 <div className="w-14 h-14 text-white rounded-2xl flex items-center justify-center mb-8 shadow-lg group-hover:rotate-6 transition-transform relative z-10" style={{ background: "#2D6FD4" }}>
                   <s.icon className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-black mb-4 transition-colors relative z-10 group-hover:text-[#2D6FD4]">{s.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed mb-8 relative z-10">
+                <h3 className="text-body font-black mb-4 transition-colors relative z-10 group-hover:text-[#2D6FD4]">{s.title}</h3>
+                <p className="text-muted-foreground text-body leading-relaxed mb-8 relative z-10">
                   {s.desc}
                 </p>
-                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all relative z-10" style={{ color: "#2D6FD4" }}>
+                <div className="flex items-center gap-2 text-ui font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all relative z-10" style={{ color: "#2D6FD4" }}>
                   Открыть раздел <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </motion.div>
@@ -270,7 +231,7 @@ export default function Students() {
                     <activeSection.icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Школьникам</p>
+                    <p className="text-ui text-muted-foreground font-mono uppercase tracking-wider">Школьникам</p>
                     <h2 className="font-bold">{activeSection.title}</h2>
                   </div>
                 </div>

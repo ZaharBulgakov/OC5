@@ -2,3 +2,10 @@
 @source '../**/*.{js,ts,jsx,tsx}';
 
 @import 'tw-animate-css';
+
+@theme {
+  /* ─── Типографика: 3 уровня ─── */
+  --text-ui:      0.75rem;    /* 12px  — метки, badges, мета, кнопки */
+  --text-body:    0.9375rem;  /* 15px  — основной текст, описания, списки */
+  --text-heading: 3.25rem;    /* 52px  — заголовки страниц (h1) */
+}

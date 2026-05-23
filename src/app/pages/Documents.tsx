@@ -6,11 +6,11 @@ import { supabase } from "../lib/supabase";
 interface Document {
   id: number;
   title: string;
-  // category: string; // Категория удалена
   type: string;
   size: string;
   date: string;
-  url?: string; // Добавляем URL для ссылки на файл
+  section?: string;
+  url?: string;
 }
 
 export default function Documents() {
@@ -46,19 +46,21 @@ export default function Documents() {
   const filtered = useMemo(() => {
     return documents
       .filter((d) => {
-        const matchQ = d.title.toLowerCase().includes(query.toLowerCase());
-        // const matchC = cat === "Все" || d.category === cat; // Категория удалена
-        return matchQ; // matchC удалена
+        const q = query.toLowerCase();
+        return (
+          d.title.toLowerCase().includes(q) ||
+          (d.section || "").toLowerCase().includes(q)
+        );
       })
       .sort((a, b) => a.title.localeCompare(b.title, "ru"));
-  }, [query, documents]); // cat удалена из зависимостей
+  }, [query, documents]);
 
   const grouped = useMemo(() => {
     const g: Record<string, Document[]> = {};
     filtered.forEach((d) => {
-      const letter = d.title[0].toUpperCase();
-      if (!g[letter]) g[letter] = [];
-      g[letter].push(d);
+      const sec = d.section?.trim() || "Без раздела";
+      if (!g[sec]) g[sec] = [];
+      g[sec].push(d);
     });
     return Object.entries(g).sort(([a], [b]) => a.localeCompare(b, "ru"));
   }, [filtered]);
@@ -110,11 +112,7 @@ export default function Documents() {
           className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-4"
         >
           <div>
-            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest" style={{ background: "#E8450A", color: "#fff" }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-white" />
-              Документация
-            </div>
-            <h1 className="text-5xl lg:text-6xl font-bold mb-4" style={{ color: "#1A2B4A" }}>Документы</h1>
+            <h1 className="text-heading font-bold mb-4" style={{ color: "#1A2B4A" }}>Документы</h1>
             <p className="max-w-md" style={{ color: "#E8450A", opacity: 0.85 }}>
               Нормативные акты, формы и шаблоны образовательного учреждения
             </p>
@@ -132,19 +130,19 @@ export default function Documents() {
               placeholder="Поиск по названию документа..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 border border-border rounded bg-secondary outline-none focus:ring-1 focus:ring-foreground transition-all text-sm"
+              className="w-full pl-11 pr-4 py-3 border border-border rounded bg-secondary outline-none focus:ring-1 focus:ring-foreground transition-all text-body"
             />
             {query && (
               <button
                 onClick={() => setQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-lg leading-none"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-body leading-none"
               >
                 ×
               </button>
             )}
           </div>
 
-          <p className="mt-3 text-xs text-muted-foreground">
+          <p className="mt-3 text-ui text-muted-foreground">
             Найдено документов: <strong>{filtered.length}</strong> из {documents.length}
           </p>
         </div>
@@ -155,66 +153,95 @@ export default function Documents() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-blue-dark"></div>
         </div>
       ) : (
-        /* ─── DOCUMENTS LIST ─── */
-        <section className="py-10 px-6 lg:px-10">
-          <div className="max-w-5xl mx-auto">
-            {grouped.length === 0 ? (
-              <div className="text-center py-20 text-muted-foreground">
-                <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p>По вашему запросу ничего не найдено</p>
-              </div>
-            ) : (
-              <div className="space-y-10">
-                {grouped.map(([letter, docs]) => (
-                  <motion.div
-                    key={letter}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                  >
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="w-10 h-10 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg" style={{ background: "#E8450A" }}>
-                        {letter}
-                      </div>
-                      <div className="h-px flex-1 bg-border" />
-                    </div>
+        /* ─── DOCUMENTS LIST + SIDEBAR ─── */
+        <div className="px-6 lg:px-10 py-10">
+          <div className="max-w-5xl mx-auto flex gap-8 items-start">
 
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {docs.map((doc) => (
-                        <motion.div
-                          key={doc.id}
-                          whileHover={{ y: -2 }}
-                          className="group bg-card border border-border p-5 rounded-2xl hover:shadow-xl transition-all cursor-pointer relative overflow-hidden"
-                          onClick={() => handleDownload(doc)}
-                        >
-                          <div className="absolute top-0 right-0 w-16 h-16 bg-brand-blue-dark/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-                          
-                          <div className="flex items-start justify-between mb-4 relative z-10">
-                            <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center group-hover:text-white transition-colors" style={{}} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#E8450A"; }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                              <FileText className="w-5 h-5" style={{ color: "#E8450A" }} />
-                            </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-secondary px-2 py-1 rounded">
-                              {doc.type}
-                            </span>
-                          </div>
-
-                          <h3 className="font-bold text-sm leading-tight mb-4 group-hover:text-[#E8450A] transition-colors line-clamp-2">
-                            {doc.title}
-                          </h3>
-
-                          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground pt-4 border-t border-border/50">
-                            <span>{doc.size}</span>
-                            <span>{doc.date}</span>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+            {/* ─── SIDEBAR NAVIGATION ─── */}
+            {grouped.length > 0 && (
+              <aside className="hidden lg:block w-44 shrink-0 sticky top-32 self-start">
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Разделы</p>
+                <nav className="flex flex-col gap-0.5 border-r border-border pr-4">
+                  {grouped.map(([section, docs]) => (
+                    <a
+                      key={section}
+                      href={`#section-${encodeURIComponent(section)}`}
+                      className="group flex items-center justify-between py-2 rounded-lg text-sm font-bold transition-all hover:text-[#E8450A] text-muted-foreground"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        document.getElementById(`section-${encodeURIComponent(section)}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
+                    >
+                      <span className="truncate leading-snug">{section}</span>
+                      <span className="ml-2 text-xs font-black tabular-nums opacity-40 group-hover:opacity-100 shrink-0">{docs.length}</span>
+                    </a>
+                  ))}
+                </nav>
+              </aside>
             )}
+
+            {/* ─── DOCUMENTS ─── */}
+            <div className="flex-1 min-w-0">
+              {grouped.length === 0 ? (
+                <div className="text-center py-20 text-muted-foreground">
+                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                  <p>По вашему запросу ничего не найдено</p>
+                </div>
+              ) : (
+                <div className="space-y-10">
+                  {grouped.map(([section, docs]) => (
+                    <motion.div
+                      key={section}
+                      id={`section-${encodeURIComponent(section)}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                    >
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="text-white rounded-xl flex items-center justify-center font-black text-body shadow-lg px-4 py-2 text-sm" style={{ background: "#E8450A" }}>
+                          {section}
+                        </div>
+                        <div className="h-px flex-1 bg-border" />
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {docs.map((doc) => (
+                          <motion.div
+                            key={doc.id}
+                            whileHover={{ y: -2 }}
+                            className="group bg-card border border-border p-5 rounded-2xl hover:shadow-xl transition-all cursor-pointer relative overflow-hidden"
+                            onClick={() => handleDownload(doc)}
+                          >
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-brand-blue-dark/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+
+                            <div className="flex items-start justify-between mb-4 relative z-10">
+                              <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center group-hover:text-white transition-colors" style={{}} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#E8450A"; }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                                <FileText className="w-5 h-5" style={{ color: "#E8450A" }} />
+                              </div>
+                              <span className="text-ui font-black uppercase tracking-widest text-muted-foreground bg-secondary px-2 py-1 rounded">
+                                {doc.type}
+                              </span>
+                            </div>
+
+                            <h3 className="font-bold text-body leading-tight mb-4 group-hover:text-[#E8450A] transition-colors line-clamp-2">
+                              {doc.title}
+                            </h3>
+
+                            <div className="flex items-center justify-between text-ui font-bold uppercase tracking-wider text-muted-foreground pt-4 border-t border-border/50">
+                              <span>{doc.size}</span>
+                              <span>{doc.date}</span>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+
           </div>
-        </section>
+        </div>
       )}
 
 

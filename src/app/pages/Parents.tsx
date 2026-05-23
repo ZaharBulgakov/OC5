@@ -125,17 +125,14 @@ export default function Parents() {
   return (
     <div>
       {/* ─── PAGE HEADER ─── */}
-      <section className="py-14 px-6 lg:px-10 border-b border-border bg-secondary">
+      <section className="py-14 px-6 lg:px-10 border-b border-border" style={{ background: "#FFF0F6" }}>
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           className="max-w-5xl mx-auto"
         >
-          <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground mb-3">
-            Для семьи
-          </p>
-          <h1 className="text-5xl lg:text-6xl font-bold mb-4">Родителям</h1>
-          <p className="text-muted-foreground max-w-xl">
+          <h1 className="text-heading font-bold mb-4" style={{ color: "#1A2B4A" }}>Родителям</h1>
+          <p className="max-w-xl text-body" style={{ color: "#D91E6E", opacity: 0.85 }}>
             Всё необходимое для родителей и законных представителей учащихся: порядок поступления,
             часто задаваемые вопросы, документы и контакты.
           </p>
@@ -143,57 +140,68 @@ export default function Parents() {
       </section>
 
       {/* ─── АЛГОРИТМ ПОСТУПЛЕНИЯ ─── */}
-      <section className="py-16 px-6 lg:px-10">
-        <div className="max-w-5xl mx-auto">
-          <div className="mb-10">
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground mb-2">
-              Как поступить
-            </p>
-            <h2 className="text-3xl lg:text-4xl font-bold">Алгоритм поступления</h2>
+      <section className="py-20 px-6 lg:px-10">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-14">
+            <h2 className="text-heading font-bold" style={{ color: "#1A2B4A" }}>Алгоритм поступления</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-0 relative">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {steps.map((step, i) => (
-              <div key={step.num} className="relative flex md:flex-col items-start md:items-center gap-4 md:gap-0">
-                {i < steps.length - 1 && (
-                  <div className="hidden md:flex absolute top-7 left-[calc(50%+2.5rem)] right-0 items-center z-10">
-                    <div className="flex-1 h-px bg-border" />
-                    <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0 -ml-1" />
-                  </div>
-                )}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.12 }}
-                  className="flex-1 md:flex md:flex-col md:items-center md:text-center w-full"
-                >
-                  <div className="w-14 h-14 bg-foreground text-background rounded-full flex items-center justify-center text-xl font-bold mb-4 flex-shrink-0 mx-auto">
+              <motion.div
+                key={step.num}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="flex flex-col"
+              >
+                {/* Indicator */}
+                <div className="hidden md:flex justify-center mb-6 relative">
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-lg font-bold shadow-md z-10 relative"
+                    style={{ background: "#D91E6E", color: "#ffffff" }}
+                  >
                     {step.num}
                   </div>
-                  <div className="border border-border bg-card rounded p-5 w-full md:mx-2">
-                    <h3 className="font-bold mb-2">{step.title}</h3>
-                    <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{step.desc}</p>
-                    <ul className="space-y-1.5">
-                      {step.details.map((d, di) => (
-                        <li key={di} className="flex items-start gap-2 text-xs text-muted-foreground">
-                          <span className="w-3 h-3 border border-border rounded flex-shrink-0 mt-0.5" />
-                          {d}
-                        </li>
-                      ))}
-                    </ul>
+
+                </div>
+
+                {/* Card */}
+                <div className="border border-border bg-card rounded-xl p-5 flex flex-col gap-3 flex-1">
+                  {/* Mobile header */}
+                  <div className="flex items-center gap-3 md:hidden">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0" style={{ background: "#D91E6E", color: "#ffffff" }}>
+                      {step.num}
+                    </div>
+                    <h3 className="font-bold text-sm">{step.title}</h3>
                   </div>
-                </motion.div>
-              </div>
+
+                  {/* Desktop title */}
+                  <h3 className="hidden md:block font-bold text-sm">{step.title}</h3>
+
+                  <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
+
+                  <ul className="space-y-2 mt-auto pt-3 border-t border-border">
+                    {step.details.map((d, di) => (
+                      <li key={di} className="flex items-start gap-2 text-sm text-muted-foreground leading-relaxed">
+                        <span className="w-3 h-3 rounded mt-0.5 flex-shrink-0" style={{ border: "1.5px solid #D91E6E" }} />
+                        {d}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </motion.div>
             ))}
           </div>
 
-          <div className="mt-10 text-center">
+          <div className="mt-12 text-center">
             <a
               href="https://gosuslugi.ru"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded hover:opacity-80 transition-opacity text-sm"
+              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full hover:opacity-85 transition-opacity text-sm font-semibold shadow-md"
+              style={{ background: "#D91E6E", color: "#ffffff" }}
             >
               Подать заявление через Госуслуги <ArrowRight className="w-4 h-4" />
             </a>
@@ -202,7 +210,7 @@ export default function Parents() {
       </section>
 
       {/* ─── РОДИТЕЛЬСКИЙ КОМИТЕТ ─── */}
-      <section className="py-12 px-6 lg:px-10 border-t border-border bg-secondary">
+      <section className="py-12 px-6 lg:px-10 border-t border-border bg-secondary" style={{ background: "#FFF0F6" }}>
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -210,12 +218,12 @@ export default function Parents() {
             viewport={{ once: true }}
             className="border border-border bg-card rounded p-8 md:p-10 flex flex-col md:flex-row gap-8 items-start md:items-center"
           >
-            <div className="w-16 h-16 bg-foreground text-background rounded flex items-center justify-center flex-shrink-0">
+            <div className="w-16 h-16 rounded flex items-center justify-center flex-shrink-0" style={{ background: "#D91E6E", color: "#ffffff" }}>
               <Users className="w-8 h-8" />
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold mb-2">Родительский комитет</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed max-w-xl mb-5">
+              <h2 className="text-heading font-bold mb-2" style={{ color: "#1A2B4A" }}>Родительский комитет</h2>
+              <p className="text-muted-foreground text-body leading-relaxed max-w-xl mb-5">
                 Родительский комитет ОЦ №5 — выборный орган, представляющий интересы семей учащихся.
                 Заседания проводятся ежемесячно. Комитет участвует в обсуждении учебных планов, организации
                 мероприятий и решении текущих вопросов жизни школы. К участию приглашаются все желающие.
@@ -223,11 +231,12 @@ export default function Parents() {
               <div className="flex flex-wrap gap-3">
                 <a
                   href="mailto:committee@oc5-chel.ru"
-                  className="inline-flex items-center gap-2 bg-foreground text-background px-5 py-2.5 rounded text-sm hover:opacity-80 transition-opacity"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded text-body hover:opacity-80 transition-opacity"
+                  style={{ background: "#D91E6E", color: "#ffffff" }}
                 >
                   Вступить в комитет
                 </a>
-                <button className="inline-flex items-center gap-2 border border-border px-5 py-2.5 rounded text-sm hover:bg-secondary transition-colors">
+                <button className="inline-flex items-center gap-2 px-5 py-2.5 rounded text-body hover:opacity-80 transition-colors" style={{ border: "1.5px solid #D91E6E", color: "#D91E6E" }}>
                   Расписание заседаний
                 </button>
               </div>
@@ -240,10 +249,7 @@ export default function Parents() {
       <section className="py-16 px-6 lg:px-10 border-t border-border">
         <div className="max-w-5xl mx-auto">
           <div className="mb-10">
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground mb-2">
-              Вопросы и ответы
-            </p>
-            <h2 className="text-3xl lg:text-4xl font-bold">Часто задаваемые вопросы</h2>
+            <h2 className="text-heading font-bold" style={{ color: "#1A2B4A" }}>Часто задаваемые вопросы</h2>
           </div>
 
           <div className="space-y-2">
@@ -260,11 +266,12 @@ export default function Parents() {
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-secondary transition-colors"
                 >
-                  <span className="font-semibold text-sm pr-4">{faq.q}</span>
+                  <span className="font-semibold text-body pr-4">{faq.q}</span>
                   <ChevronDown
-                    className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 ${
+                    className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${
                       openFaq === i ? "rotate-180" : ""
                     }`}
+                    style={{ color: "#D91E6E" }}
                   />
                 </button>
 
@@ -272,7 +279,7 @@ export default function Parents() {
                   className="overflow-hidden transition-all duration-300"
                   style={{ maxHeight: openFaq === i ? "600px" : "0", opacity: openFaq === i ? 1 : 0 }}
                 >
-                  <div className="px-6 pb-5 pt-1 text-sm text-muted-foreground leading-relaxed border-t border-border">
+                  <div className="px-6 pb-5 pt-1 text-body text-muted-foreground leading-relaxed border-t border-border">
                     {faq.a}
                   </div>
                 </div>
@@ -280,35 +287,21 @@ export default function Parents() {
             ))}
           </div>
 
-          <div className="mt-8 p-5 bg-secondary border border-border rounded">
-            <p className="text-sm text-muted-foreground">
-              Не нашли ответа на свой вопрос?{" "}
-              <a href="mailto:info@oc5-chel.ru" className="text-foreground underline underline-offset-2 hover:no-underline">
-                Напишите нам
-              </a>{" "}
-              или позвоните по тел.{" "}
-              <a href="tel:+73512000005" className="text-foreground underline underline-offset-2 hover:no-underline">
-                +7 (351) 200-00-05
-              </a>
-            </p>
-          </div>
+        
         </div>
       </section>
 
       {/* ─── ДОКУМЕНТЫ ДЛЯ СКАЧИВАНИЯ ─── */}
-      <section className="py-16 px-6 lg:px-10 border-t border-border bg-secondary">
+      <section className="py-16 px-6 lg:px-10 border-t border-border" style={{ background: "#FFF0F6" }}>
         <div className="max-w-5xl mx-auto">
           <div className="mb-10">
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground mb-2">
-              Полезные материалы
-            </p>
-            <h2 className="text-3xl lg:text-4xl font-bold">Документы для родителей</h2>
+            <h2 className="text-heading font-bold">Документы для родителей</h2>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {loading ? (
               <div className="col-span-full flex justify-center py-10">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue-dark"></div>
+                <div className="animate-spin rounded-full h-8 w-8" style={{ borderBottom: "2px solid #D91E6E" }}></div>
               </div>
             ) : downloads.length > 0 ? (
               downloads.map((doc, i) => (
@@ -318,25 +311,34 @@ export default function Parents() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.06 }}
-                  className="group flex items-center gap-4 px-5 py-4 bg-card border border-border rounded hover:border-foreground/30 hover:shadow-sm transition-all duration-150"
+                  whileHover={{ y: -2 }}
+                  className="group bg-card border border-border p-5 rounded-2xl hover:shadow-xl transition-all cursor-pointer relative overflow-hidden"
+                  onClick={() => handleDownload(doc)}
                 >
-                  <div className="w-9 h-9 bg-secondary border border-border rounded flex items-center justify-center flex-shrink-0 group-hover:bg-foreground transition-colors duration-150">
-                    <FileText className="w-4 h-4 group-hover:text-background transition-colors" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{doc.title}</p>
-                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
-                      <span className="border border-border px-1.5 py-0.5 rounded font-mono">{doc.type}</span>
-                      <span>{doc.size}</span>
+                  <div className="absolute top-0 right-0 w-16 h-16 rounded-full -translate-y-1/2 translate-x-1/2" style={{ background: "#D91E6E0D" }} />
+
+                  <div className="flex items-start justify-between mb-4 relative z-10">
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
+                      style={{ background: "#FFF0F6" }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#D91E6E"; (e.currentTarget.querySelector("svg") as SVGElement).style.color = "#ffffff"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#FFF0F6"; (e.currentTarget.querySelector("svg") as SVGElement).style.color = "#D91E6E"; }}
+                    >
+                      <FileText className="w-5 h-5 transition-colors" style={{ color: "#D91E6E" }} />
                     </div>
+                    <span className="text-ui font-black uppercase tracking-widest text-muted-foreground bg-secondary px-2 py-1 rounded">
+                      {doc.type}
+                    </span>
                   </div>
-                  <button
-                    onClick={() => handleDownload(doc)}
-                    aria-label={`Скачать: ${doc.title}`}
-                    className="p-2 hover:bg-secondary rounded transition-colors flex-shrink-0"
-                  >
-                    <Download className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors" />
-                  </button>
+
+                  <h3 className="font-bold text-body leading-tight mb-4 line-clamp-2 transition-colors group-hover:text-[#D91E6E]">
+                    {doc.title}
+                  </h3>
+
+                  <div className="flex items-center justify-between text-ui font-bold uppercase tracking-wider text-muted-foreground pt-4 border-t border-border/50">
+                    <span>{doc.size}</span>
+                    <Download className="w-4 h-4 transition-colors" style={{ color: "#D91E6E" }} />
+                  </div>
                 </motion.div>
               ))
             ) : (
