@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Search, FileText, Download, ArrowDownToLine, Upload, Plus, X } from "lucide-react";
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 
 interface Document {
@@ -10,6 +10,7 @@ interface Document {
   size: string;
   date: string;
   section?: string;
+  subsection?: string;
   url?: string;
 }
 
@@ -18,7 +19,6 @@ export default function Documents() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   // const [cat, setCat] = useState("Все"); // Категория удалена
-
 
   useEffect(() => {
     const fetchDocuments = async () => {
@@ -56,13 +56,25 @@ export default function Documents() {
   }, [query, documents]);
 
   const grouped = useMemo(() => {
-    const g: Record<string, Document[]> = {};
+    const g: Record<string, Record<string, Document[]>> = {};
     filtered.forEach((d) => {
       const sec = d.section?.trim() || "Без раздела";
-      if (!g[sec]) g[sec] = [];
-      g[sec].push(d);
+      const sub = d.subsection?.trim() || "";
+      if (!g[sec]) g[sec] = {};
+      if (!g[sec][sub]) g[sec][sub] = [];
+      g[sec][sub].push(d);
     });
-    return Object.entries(g).sort(([a], [b]) => a.localeCompare(b, "ru"));
+    return Object.entries(g)
+      .sort(([a], [b]) => a.localeCompare(b, "ru"))
+      .map(([sec, subMap]) => ({
+        section: sec,
+        subs: Object.entries(subMap).sort(([a], [b]) => {
+          if (a === "") return -1;
+          if (b === "") return 1;
+          return a.localeCompare(b, "ru");
+        }),
+        total: Object.values(subMap).flat().length,
+      }));
   }, [filtered]);
 
   const handleDownload = async (doc: Document) => {
@@ -159,23 +171,50 @@ export default function Documents() {
 
             {/* ─── SIDEBAR NAVIGATION ─── */}
             {grouped.length > 0 && (
-              <aside className="hidden lg:block w-44 shrink-0 sticky top-32 self-start">
+              <aside className="hidden lg:block w-56 shrink-0 self-start">
                 <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Разделы</p>
-                <nav className="flex flex-col gap-0.5 border-r border-border pr-4">
-                  {grouped.map(([section, docs]) => (
-                    <a
-                      key={section}
-                      href={`#section-${encodeURIComponent(section)}`}
-                      className="group flex items-center justify-between py-2 rounded-lg text-sm font-bold transition-all hover:text-[#E8450A] text-muted-foreground"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        document.getElementById(`section-${encodeURIComponent(section)}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }}
-                    >
-                      <span className="truncate leading-snug">{section}</span>
-                      <span className="ml-2 text-xs font-black tabular-nums opacity-40 group-hover:opacity-100 shrink-0">{docs.length}</span>
-                    </a>
-                  ))}
+                <nav className="flex flex-col gap-1 border-r border-border pr-4">
+                  {grouped.map(({ section, subs, total }) => {
+                    const hasRealSubs = subs.some(([sub]) => sub !== "");
+                    return (
+                      <div key={section}>
+                        {/* Section link */}
+                        <a
+                          href={`#section-${encodeURIComponent(section)}`}
+                          className="group flex items-start justify-between py-2 rounded-lg text-sm font-black transition-all hover:text-[#E8450A] text-foreground"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            document.getElementById(`section-${encodeURIComponent(section)}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }}
+                        >
+                          <span className="leading-snug break-words">{section}</span>
+                          <span className="ml-2 mt-0.5 text-xs font-black tabular-nums opacity-40 group-hover:opacity-100 shrink-0">{total}</span>
+                        </a>
+
+                        {/* Subsection links */}
+                        {hasRealSubs && (
+                          <div className="flex flex-col gap-0.5 ml-3 mb-1 border-l border-border/60 pl-3">
+                            {subs
+                              .filter(([sub]) => sub !== "")
+                              .map(([sub, docs]) => (
+                                <a
+                                  key={sub}
+                                  href={`#section-${encodeURIComponent(section)}`}
+                                  className="group flex items-start justify-between py-1 text-xs font-bold transition-all hover:text-[#E8450A] text-muted-foreground"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    document.getElementById(`section-${encodeURIComponent(section)}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                  }}
+                                >
+                                  <span className="leading-snug break-words">{sub}</span>
+                                  <span className="ml-1 mt-0.5 tabular-nums opacity-40 group-hover:opacity-100 shrink-0">{docs.length}</span>
+                                </a>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </nav>
               </aside>
             )}
@@ -189,7 +228,7 @@ export default function Documents() {
                 </div>
               ) : (
                 <div className="space-y-10">
-                  {grouped.map(([section, docs]) => (
+                  {grouped.map(({ section, subs, total }) => (
                     <motion.div
                       key={section}
                       id={`section-${encodeURIComponent(section)}`}
@@ -202,36 +241,50 @@ export default function Documents() {
                           {section}
                         </div>
                         <div className="h-px flex-1 bg-border" />
+                        <span className="text-xs text-muted-foreground font-bold shrink-0">{total} doc.</span>
                       </div>
 
-                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {docs.map((doc) => (
-                          <motion.div
-                            key={doc.id}
-                            whileHover={{ y: -2 }}
-                            className="group bg-card border border-border p-5 rounded-2xl hover:shadow-xl transition-all cursor-pointer relative overflow-hidden"
-                            onClick={() => handleDownload(doc)}
-                          >
-                            <div className="absolute top-0 right-0 w-16 h-16 bg-brand-blue-dark/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-
-                            <div className="flex items-start justify-between mb-4 relative z-10">
-                              <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center group-hover:text-white transition-colors" style={{}} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#E8450A"; }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
-                                <FileText className="w-5 h-5" style={{ color: "#E8450A" }} />
+                      <div className="space-y-6">
+                        {subs.map(([sub, docs]) => (
+                          <div key={sub || "__no_sub__"}>
+                            {sub && (
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="w-1 h-5 rounded-full shrink-0" style={{ background: "#E8450A", opacity: 0.5 }} />
+                                <span className="text-sm font-black uppercase tracking-wider" style={{ color: "#E8450A", opacity: 0.8 }}>{sub}</span>
+                                <div className="h-px flex-1 bg-border/60" />
                               </div>
-                              <span className="text-ui font-black uppercase tracking-widest text-muted-foreground bg-secondary px-2 py-1 rounded">
-                                {doc.type}
-                              </span>
-                            </div>
+                            )}
+                            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {docs.map((doc) => (
+                                <motion.div
+                                  key={doc.id}
+                                  whileHover={{ y: -2 }}
+                                  className="group bg-card border border-border p-5 rounded-2xl hover:shadow-xl transition-all cursor-pointer relative overflow-hidden"
+                                  onClick={() => handleDownload(doc)}
+                                >
+                                  <div className="absolute top-0 right-0 w-16 h-16 bg-brand-blue-dark/5 rounded-full -translate-y-1/2 translate-x-1/2" />
 
-                            <h3 className="font-bold text-body leading-tight mb-4 group-hover:text-[#E8450A] transition-colors line-clamp-2">
-                              {doc.title}
-                            </h3>
+                                  <div className="flex items-start justify-between mb-4 relative z-10">
+                                    <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center group-hover:text-white transition-colors" style={{}} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#E8450A"; }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                                      <FileText className="w-5 h-5" style={{ color: "#E8450A" }} />
+                                    </div>
+                                    <span className="text-ui font-black uppercase tracking-widest text-muted-foreground bg-secondary px-2 py-1 rounded">
+                                      {doc.type}
+                                    </span>
+                                  </div>
 
-                            <div className="flex items-center justify-between text-ui font-bold uppercase tracking-wider text-muted-foreground pt-4 border-t border-border/50">
-                              <span>{doc.size}</span>
-                              <span>{doc.date}</span>
+                                  <h3 className="font-bold text-body leading-tight mb-4 group-hover:text-[#E8450A] transition-colors">
+                                    {doc.title}
+                                  </h3>
+
+                                  <div className="flex items-center justify-between text-ui font-bold uppercase tracking-wider text-muted-foreground pt-4 border-t border-border/50">
+                                    <span>{doc.size}</span>
+                                    <span>{doc.date}</span>
+                                  </div>
+                                </motion.div>
+                              ))}
                             </div>
-                          </motion.div>
+                          </div>
                         ))}
                       </div>
                     </motion.div>

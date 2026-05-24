@@ -1,20 +1,43 @@
 import { motion } from "motion/react";
-import { useState } from "react";
-import { MapPin, Phone, Mail, Clock, Send } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MapPin, Phone, Mail, Clock, Send, Search } from "lucide-react";
 import { VKIcon, OKIcon } from "../components/SocialIcons";
+import { supabase } from "../lib/supabase";
 
-const departments = [
-  { name: "Приёмная директора", phone: "+7 (351) 200-00-05", email: "director@oc5-chel.ru" },
-  { name: "Приёмная комиссия", phone: "+7 (351) 200-00-06", email: "priem@oc5-chel.ru" },
-  { name: "Учебная часть", phone: "+7 (351) 200-00-07", email: "uch@oc5-chel.ru" },
-  { name: "Педагог-психолог", phone: "+7 (351) 200-00-08", email: "psych@oc5-chel.ru" },
-  { name: "Бухгалтерия", phone: "+7 (351) 200-00-09", email: "fin@oc5-chel.ru" },
-  { name: "Дежурный администратор", phone: "+7 (351) 200-00-10", email: "admin@oc5-chel.ru" },
-];
+interface Contact {
+  id: string;
+  name: string;
+  position?: string;
+  phone: string;
+  email?: string;
+  image_url?: string;
+  order_num: number;
+}
 
 export default function Contacts() {
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
   const [sent, setSent] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    fetchContacts();
+  }, []);
+
+  const fetchContacts = async () => {
+    const { data, error } = await supabase
+      .from("contacts")
+      .select("*")
+      .order("order_num", { ascending: true });
+    
+    if (error) {
+      console.error("Error fetching contacts:", error);
+    } else {
+      setContacts(data as Contact[] || []);
+    }
+    setLoading(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +45,14 @@ export default function Contacts() {
     setTimeout(() => setSent(false), 5000);
     setForm({ name: "", email: "", subject: "", message: "" });
   };
+
+  const filteredContacts = contacts.filter(contact =>
+    contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (contact.position && contact.position.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    contact.phone.includes(searchQuery) ||
+    (contact.email && contact.email.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
 
   return (
     <div>
@@ -34,7 +65,7 @@ export default function Contacts() {
         >
           <h1 className="text-heading font-bold mb-4" style={{ color: "#1A2B4A" }}>Контакты</h1>
           <p className="max-w-md" style={{ color: "#1ABCB0", opacity: 0.9 }}>
-            Свяжитесь с нами любым удобным способом — мы ответим в течение одного рабочего дня.
+            Свяжитесь с нами любым удобным способом!
           </p>
         </motion.div>
       </section>
@@ -63,15 +94,15 @@ export default function Contacts() {
               {/* Overlay badge */}
               <div className="absolute top-3 left-3 bg-card border border-border rounded px-3 py-1.5 flex items-center gap-2 shadow-sm pointer-events-none">
                 <MapPin className="w-4 h-4 text-foreground" />
-                <span className="text-ui font-semibold">ОЦ №5, г. Челябинск</span>
+                <span className="text-ui font-semibold">МАОУ «ОЦ № 5 г. Челябинска»</span>
               </div>
             </div>
 
             {/* Hours below map */}
             <div className="mt-4 border border-border rounded p-4 bg-card grid sm:grid-cols-3 gap-3 text-body">
               {[
-                { day: "Пн–Пт", time: "8:00 – 18:00" },
-                { day: "Суббота", time: "9:00 – 14:00" },
+                { day: "Пн–Пт", time: "8:00 – 20:00" },
+                { day: "Суббота", time: "Выходной" },
                 { day: "Воскресенье", time: "Выходной" },
               ].map((h) => (
                 <div key={h.day} className="flex items-center gap-2">
@@ -86,17 +117,6 @@ export default function Contacts() {
               ))}
             </div>
 
-            {/* Route button */}
-            <a
-              href="https://yandex.ru/maps/56/chelyabinsk/?ll=61.4368%2C55.1644&z=15"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 flex items-center justify-center gap-2 border border-border rounded px-5 py-2.5 text-body hover:bg-secondary transition-colors"
-            >
-              <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#1ABCB0" }}>
-                <MapPin className="w-3 h-3" style={{ color: "#ffffff" }} />
-              </div> Проложить маршрут на Яндекс.Картах
-            </a>
           </motion.div>
 
           {/* RIGHT – CONTACT INFO PANEL */}
@@ -114,35 +134,8 @@ export default function Contacts() {
                   <MapPin className="w-4 h-4" style={{ color: "#ffffff" }} />
                 </div>
                 <div>
-                  <p className="font-semibold">454000, г. Челябинск</p>
-                  <p className="text-muted-foreground text-body">ул. Образовательная, д. 5</p>
-                  <p className="text-muted-foreground text-body">ост. «Школьная площадь»</p>
-                  <p className="text-ui text-muted-foreground mt-1">Ближайшее метро: нет / трамвай №1, 3, автобус №47, 92</p>
+                  <p className="font-semibold">454030, г. Челябинск, ул. Скульптора Головницкого, д. 13</p>
                 </div>
-              </div>
-            </div>
-
-            {/* Phone card */}
-            <div className="border border-border rounded p-5 bg-card">
-              <h3 className="font-bold mb-4 text-body uppercase tracking-wider text-muted-foreground">Телефоны</h3>
-              <div className="space-y-2.5">
-                {[
-                  { label: "Приёмная директора", phone: "+7 (351) 200-00-05" },
-                  { label: "Приёмная комиссия", phone: "+7 (351) 200-00-06" },
-                  { label: "Дежурный администратор", phone: "+7 (351) 200-00-10" },
-                ].map((p) => (
-                  <div key={p.phone} className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#1ABCB0" }}>
-                      <Phone className="w-4 h-4" style={{ color: "#ffffff" }} />
-                    </div>
-                    <div>
-                      <p className="text-ui text-muted-foreground">{p.label}</p>
-                      <a href={`tel:${p.phone.replace(/\s/g, "")}`} className="font-semibold text-body hover:underline">
-                        {p.phone}
-                      </a>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
 
@@ -153,8 +146,8 @@ export default function Contacts() {
                 <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#1ABCB0" }}>
                   <Mail className="w-4 h-4" style={{ color: "#ffffff" }} />
                 </div>
-                <a href="mailto:info@oc5-chel.ru" className="font-semibold text-body hover:underline">
-                  info@oc5-chel.ru
+                <a href="mailto:oc-5@bk.ru" className="font-semibold text-body hover:underline">
+                  oc-5@bk.ru
                 </a>
               </div>
             </div>
@@ -164,7 +157,7 @@ export default function Contacts() {
               <h3 className="font-bold mb-4 text-body uppercase tracking-wider text-muted-foreground">Мы в социальных сетях</h3>
               <div className="flex flex-col gap-2">
                 <a
-                  href="https://vk.com"
+                  href="https://vk.com/educational_center_5"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 px-4 py-2.5 rounded text-body hover:opacity-90 transition-opacity"
@@ -175,11 +168,11 @@ export default function Contacts() {
                   </div>
                   <div>
                     <p className="font-medium text-white">ВКонтакте</p>
-                    <p className="text-ui" style={{ color: "rgba(255,255,255,0.7)" }}>vk.com/oc5_chelyabinsk</p>
+                    <p className="text-ui" style={{ color: "rgba(255,255,255,0.7)" }}>vk.com/educational_center_5</p>
                   </div>
                 </a>
                 <a
-                  href="https://ok.ru"
+                  href="https://ok.ru/group/70000001206455"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 px-4 py-2.5 rounded text-body hover:opacity-90 transition-opacity"
@@ -190,7 +183,7 @@ export default function Contacts() {
                   </div>
                   <div>
                     <p className="font-medium text-white">Одноклассники</p>
-                    <p className="text-ui" style={{ color: "rgba(255,255,255,0.7)" }}>ok.ru/group/oc5chelyabinsk</p>
+                    <p className="text-ui" style={{ color: "rgba(255,255,255,0.7)" }}>ok.ru/group/70000001206455</p>
                   </div>
                 </a>
               </div>
@@ -203,64 +196,77 @@ export default function Contacts() {
       <section className="py-12 px-6 lg:px-10 border-t border-border bg-secondary" style={{ background: "#F0FAFA" }}>
         <div className="max-w-5xl mx-auto">
           <div className="mb-8">
-            <h2 className="text-heading font-bold mb-4" style={{ color: "#1A2B4A" }}>Контакты отделов</h2>
+            <h2 className="text-heading font-bold mb-4" style={{ color: "#1A2B4A" }}>Справочник контактов</h2>
+            <div className="relative max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Поиск по имени, должности, телефону..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-4 py-3 border border-border rounded-xl bg-card outline-none focus:ring-2 focus:ring-brand-blue-dark/20 transition-all text-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-lg leading-none"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {departments.map((d, i) => (
-              <motion.div
-                key={d.name}
-                initial={{ opacity: 0, y: 12 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.06 }}
-                className="border border-border bg-card rounded p-5 hover:shadow-sm transition-all"
-              >
-                <h3 className="font-bold mb-3 text-body">{d.name}</h3>
-                <div className="space-y-2 text-body">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#1ABCB0" }}>
-                      <Phone className="w-3 h-3" style={{ color: "#ffffff" }} />
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue-dark"></div>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredContacts.map((contact, i) => (
+                <motion.div
+                  key={contact.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.06 }}
+                  className="border border-border bg-card rounded p-5 hover:shadow-sm transition-all relative"
+                >
+                  {contact.image_url && (
+                    <div className="w-32 h-32 rounded-full mx-auto mb-3 overflow-hidden">
+                      <img
+                        src={contact.image_url}
+                        alt={contact.name}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
-                    <a href={`tel:${d.phone}`} className="hover:text-foreground transition-colors">{d.phone}</a>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#1ABCB0" }}>
-                      <Mail className="w-3 h-3" style={{ color: "#ffffff" }} />
+                  )}
+                  <h3 className="font-bold mb-1 text-body text-center">{contact.name}</h3>
+                  {contact.position && (
+                    <p className="text-sm text-muted-foreground text-center mb-3">{contact.position}</p>
+                  )}
+                  <div className="space-y-2 text-body">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#1ABCB0" }}>
+                        <Phone className="w-3 h-3" style={{ color: "#ffffff" }} />
+                      </div>
+                      <a href={`tel:${contact.phone}`} className="hover:text-foreground transition-colors">{contact.phone}</a>
                     </div>
-                    <a href={`mailto:${d.email}`} className="hover:text-foreground transition-colors">{d.email}</a>
+                    {contact.email && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#1ABCB0" }}>
+                          <Mail className="w-3 h-3" style={{ color: "#ffffff" }} />
+                        </div>
+                        <a href={`mailto:${contact.email}`} className="hover:text-foreground transition-colors">{contact.email}</a>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
-      {/* ─── CONTACT FORM ─── */}
-      <section className="py-16 px-6 lg:px-10 border-t border-border">
-        <div className="max-w-5xl mx-auto grid lg:grid-cols-1 gap-12 items-start">
-          <div>
-            <h2 className="text-heading font-bold mb-4" style={{ color: "#1A2B4A" }}>Форма обратной связи</h2>
-            <p className="text-muted-foreground text-body leading-relaxed">
-              Задайте вопрос, оставьте предложение или запишитесь на приём к директору.
-              Мы ответим по электронной почте в течение 24 часов в рабочие дни.
-              Для срочных вопросов рекомендуем звонить напрямую в приёмную.
-            </p>
-            <div className="mt-6 space-y-3">
-              {[
-                { label: "Вопрос по поступлению", email: "priem@oc5-chel.ru" },
-                { label: "Вопрос по учёбе", email: "uch@oc5-chel.ru" },
-                { label: "Общий вопрос", email: "info@oc5-chel.ru" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-3 text-body">
-                  <span className="text-muted-foreground">{item.label}:</span>
-                  <a href={`mailto:${item.email}`} className="font-medium hover:underline underline-offset-2">{item.email}</a>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

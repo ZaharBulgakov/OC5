@@ -321,13 +321,6 @@ export default function Layout() {
               );
             })}
           </nav>
-
-          {/* Sidebar bottom info */}
-          <div className="p-4 border-t border-sidebar-border text-xs text-muted-foreground space-y-1">
-            <p className="font-semibold text-foreground text-xs">Режим работы:</p>
-            <p>Пн–Пт: 8:00 – 18:00</p>
-            <p>Сб: 9:00 – 14:00</p>
-          </div>
         </aside>
 
         {/* ─── MAIN CONTENT ─── */}
@@ -354,7 +347,7 @@ export default function Layout() {
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${routeColor.text}35` }}>
                         <MapPin className="w-4 h-4" style={{ color: routeColor.text }} />
                       </div>
-                      <span className="pt-1 leading-relaxed">454000, г. Челябинск, ул. Образовательная, д. 5</span>
+                      <span className="pt-1 leading-relaxed">454030, г. Челябинск, ул. Скульптора Головницкого, д. 13</span>
                     </li>
                     <li className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${routeColor.text}35` }}>

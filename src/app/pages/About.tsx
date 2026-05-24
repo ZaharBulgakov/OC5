@@ -49,6 +49,7 @@ const historyItems = [
 interface Photo {
   url: string;
   caption: string;
+  created_at?: string;
 }
 
 interface Collection {
@@ -58,6 +59,7 @@ interface Collection {
   cover: string;
   count: number;
   photos: Photo[];
+  created_at?: string;
 }
 
 export default function About() {
@@ -67,6 +69,7 @@ export default function About() {
   const [loading, setLoading] = useState(true);
   const [hasMoreCollections, setHasMoreCollections] = useState(true);
   const [collectionOffset, setCollectionOffset] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
   const COLLECTIONS_PER_PAGE = 4;
 
   useEffect(() => {
@@ -98,9 +101,10 @@ export default function About() {
             cover: item.url,
             count: 0,
             photos: [],
+            created_at: item.created_at,
           };
         }
-        acc[collectionName].photos.push({ url: item.url, caption: item.title });
+        acc[collectionName].photos.push({ url: item.url, caption: item.title, created_at: item.created_at });
         acc[collectionName].count = acc[collectionName].photos.length;
         return acc;
       }, {});
@@ -119,6 +123,12 @@ export default function About() {
 
   const handleShowMoreCollections = () => {
     fetchGalleryCollections();
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   const openLightbox = (index: number) => setLightboxIndex(index);
@@ -189,9 +199,33 @@ export default function About() {
       {/* ─── ГАЛЕРЕЯ КОЛЛЕКЦИЙ ─── */}
       <section className="py-16 px-6 lg:px-10 bg-secondary border-t border-border">
         <div className="max-w-5xl mx-auto">
-          <div className="mb-10">
-            <h2 className="text-heading font-bold" style={{ color: "#1A2B4A" }}>Галерея</h2>
-            <p className="text-muted-foreground mt-2">Нажмите на коллекцию, чтобы посмотреть фотографии</p>
+          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-10 gap-4">
+            <div>
+              <h2 className="text-heading font-bold" style={{ color: "#1A2B4A" }}>Галерея</h2>
+              <p className="text-muted-foreground mt-2">Нажмите на коллекцию, чтобы посмотреть фотографии</p>
+            </div>
+            <div className="relative w-full sm:w-80">
+              <input
+                type="text"
+                placeholder="Поиск коллекций..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 pl-10 border border-border rounded-lg bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-blue-dark"
+              />
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
           </div>
 
           {loading ? (
@@ -200,7 +234,16 @@ export default function About() {
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 gap-5">
-              {dbCollections.map((col, i) => (
+              {dbCollections
+                .filter((col) => {
+                  const query = searchQuery.toLowerCase();
+                  return (
+                    col.title.toLowerCase().includes(query) ||
+                    col.description.toLowerCase().includes(query) ||
+                    (col.created_at && formatDate(col.created_at).includes(query))
+                  );
+                })
+                .map((col, i) => (
                 <motion.div
                   key={col.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -222,6 +265,9 @@ export default function About() {
                       <div>
                         <p className="text-white font-bold text-body leading-tight">{col.title}</p>
                         <p className="text-white/70 text-ui mt-1">{col.description}</p>
+                        {col.created_at && (
+                          <p className="text-white/50 text-xs mt-1">{formatDate(col.created_at)}</p>
+                        )}
                       </div>
                       <span className="text-white/60 text-body font-mono bg-black/30 px-2 py-0.5 rounded">
                         {col.count} фото
@@ -233,7 +279,20 @@ export default function About() {
             </div>
           )}
 
-          {hasMoreCollections && !loading && (
+          {dbCollections.filter((col) => {
+            const query = searchQuery.toLowerCase();
+            return (
+              col.title.toLowerCase().includes(query) ||
+              col.description.toLowerCase().includes(query) ||
+              (col.created_at && formatDate(col.created_at).includes(query))
+            );
+          }).length === 0 && !loading && (
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-lg">По вашему запросу ничего не найдено</p>
+            </div>
+          )}
+
+          {hasMoreCollections && !loading && searchQuery === "" && (
             <div className="flex justify-center mt-8">
               <button
                 onClick={handleShowMoreCollections}
@@ -337,9 +396,12 @@ export default function About() {
                       className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-200 flex items-end">
-                      <p className="text-white text-ui px-3 pb-2 translate-y-full group-hover:translate-y-0 transition-transform duration-200">
-                        {photo.caption}
-                      </p>
+                      <div className="px-3 pb-2 translate-y-full group-hover:translate-y-0 transition-transform duration-200">
+                        <p className="text-white text-ui">{photo.caption}</p>
+                        {photo.created_at && (
+                          <p className="text-white/70 text-xs">{formatDate(photo.created_at)}</p>
+                        )}
+                      </div>
                     </div>
                   </motion.div>
                 ))}

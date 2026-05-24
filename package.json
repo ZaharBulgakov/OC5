@@ -7,7 +7,6 @@
     "build": "vite build",
     "dev": "vite",
     "start": "vite preview --host 0.0.0.0 --port $PORT"
-
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -53,6 +52,7 @@
     "lucide-react": "0.487.0",
     "motion": "12.23.24",
     "next-themes": "0.4.6",
+    "react-activation": "^0.13.4",
     "react-day-picker": "8.10.1",
     "react-dnd": "16.0.1",
     "react-dnd-html5-backend": "16.0.1",

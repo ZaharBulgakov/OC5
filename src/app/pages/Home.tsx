@@ -6,33 +6,33 @@ import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "../lib/supabase";
 
 const movements = [
-  {
-    id: 1,
-    title: "Движение Первых",
-    tag: "Всероссийское",
-    icon: Award,
-    color: "bg-brand-blue-dark",
-    tagColor: "border-brand-blue-dark/20 text-brand-blue-dark bg-brand-blue-dark/5",
-    desc: "Мы — участники Российского движения детей и молодёжи. Наши ученики участвуют в волонтёрских акциях, конкурсах и образовательных проектах федерального уровня.",
-  },
-  {
-    id: 2,
-    title: "Школьный совет",
-    tag: "Самоуправление",
-    icon: Users,
-    color: "bg-brand-pink",
-    tagColor: "border-brand-pink/20 text-brand-pink bg-brand-pink/5",
-    desc: "Органы ученического самоуправления работают в каждой параллели. Совет участвует в организации мероприятий, защищает интересы учеников и развивает лидерские качества.",
-  },
-  {
-    id: 3,
-    title: "Академический клуб",
-    tag: "Достижения",
-    icon: TrendingUp,
-    color: "bg-brand-orange",
-    tagColor: "border-brand-orange/20 text-brand-orange bg-brand-orange/5",
-    desc: "Объединение победителей олимпиад и научных конкурсов. В 2025 году наши ученики заняли призовые места на 38 всероссийских и региональных соревнованиях.",
-  },
+  // {
+  //   id: 1,
+  //   title: "Движение Первых",
+  //   tag: "Всероссийское",
+  //   icon: Award,
+  //   color: "bg-brand-blue-dark",
+  //   tagColor: "border-brand-blue-dark/20 text-brand-blue-dark bg-brand-blue-dark/5",
+  //   desc: "Мы — участники Российского движения детей и молодёжи. Наши ученики участвуют в волонтёрских акциях, конкурсах и образовательных проектах федерального уровня.",
+  // },
+  // {
+  //   id: 2,
+  //   title: "Школьный совет",
+  //   tag: "Самоуправление",
+  //   icon: Users,
+  //   color: "bg-brand-pink",
+  //   tagColor: "border-brand-pink/20 text-brand-pink bg-brand-pink/5",
+  //   desc: "Органы ученического самоуправления работают в каждой параллели. Совет участвует в организации мероприятий, защищает интересы учеников и развивает лидерские качества.",
+  // },
+  // {
+  //   id: 3,
+  //   title: "Академический клуб",
+  //   tag: "Достижения",
+  //   icon: TrendingUp,
+  //   color: "bg-brand-orange",
+  //   tagColor: "border-brand-orange/20 text-brand-orange bg-brand-orange/5",
+  //   desc: "Объединение победителей олимпиад и научных конкурсов. В 2025 году наши ученики заняли призовые места на 38 всероссийских и региональных соревнованиях.",
+  // },
 ];
 
 interface HeroConfig {
@@ -65,8 +65,10 @@ export default function Home() {
   const [news, setNews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedNews, setSelectedNews] = useState<any | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [newsOffset, setNewsOffset] = useState(0);
   const [hasMoreNews, setHasMoreNews] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const [director, setDirector] = useState<DirectorInfo>(DEFAULT_DIRECTOR);
   const [hero, setHero] = useState<HeroConfig>(DEFAULT_HERO);
   const NEWS_PER_PAGE = 4;
@@ -296,20 +298,53 @@ export default function Home() {
       {/* ─── НОВОСТИ ─── */}
       <section className="py-16 px-6 lg:px-10 border-t border-border" style={{ background: "#FFFDF0" }}>
         <div className="max-w-5xl mx-auto">
-          <div className="flex items-end justify-between mb-10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-10 gap-4">
             <div>
               <h2 className="text-heading font-bold" style={{ color: "#1A2B4A" }}>Новости центра</h2>
+            </div>
+            <div className="relative w-full sm:w-80">
+              <input
+                type="text"
+                placeholder="Поиск новостей..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 pl-10 border border-border rounded-lg bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-blue-dark"
+              />
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-5">
-            {news.map((n, i) => (
+            {news
+              .filter((n) => {
+                const query = searchQuery.toLowerCase();
+                return (
+                  n.title?.toLowerCase().includes(query) ||
+                  n.text?.toLowerCase().includes(query) ||
+                  n.category?.toLowerCase().includes(query) ||
+                  n.date?.toLowerCase().includes(query)
+                );
+              })
+              .map((n, i) => (
               <motion.div
                 key={n.id}
                 initial={{ opacity: 0, scale: 0.98 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
+                onClick={() => setSelectedNews(n)}
                 className="group flex flex-col sm:flex-row gap-5 p-4 bg-card border border-border rounded hover:shadow-lg transition-all cursor-pointer"
               >
                 <div className="w-full sm:w-40 h-40 shrink-0 overflow-hidden rounded relative">
@@ -334,20 +369,43 @@ export default function Home() {
                   <p className="text-ui text-muted-foreground line-clamp-2 leading-relaxed mb-4">
                     {n.text}
                   </p>
-                  <button 
-                    onClick={() => setSelectedNews(n)}
-                    className="flex items-center gap-1 text-ui font-bold uppercase tracking-wider text-muted-foreground group-hover:text-brand-blue-dark transition-colors"
-                  >
+                  <div className="flex items-center gap-1 text-ui font-bold uppercase tracking-wider text-muted-foreground group-hover:text-brand-blue-dark transition-colors">
                     Читать далее <ArrowRight className="w-3 h-3" />
-                  </button>
+                  </div>
                 </div>
               </motion.div>
             ))}
           </div>
+
+          {news.filter((n) => {
+            const query = searchQuery.toLowerCase();
+            return (
+              n.title?.toLowerCase().includes(query) ||
+              n.text?.toLowerCase().includes(query) ||
+              n.category?.toLowerCase().includes(query) ||
+              n.date?.toLowerCase().includes(query)
+            );
+          }).length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-lg">По вашему запросу ничего не найдено</p>
+            </div>
+          )}
+
+          {hasMoreNews && !loading && searchQuery === "" && (
+            <div className="flex justify-center mt-8">
+              <button
+                onClick={handleShowMoreNews}
+                className="px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5 transition-all w-fit"
+                style={{ background: "#F5C200", color: "#1A2B4A" }}
+              >
+                Показать все
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* ─── ШКОЛЬНЫЕ ДВИЖЕНИЯ ─── */}
+      {/* ─── ШКОЛЬНЫЕ ДВИЖЕНИЯ ───
       <section className="py-16 px-6 lg:px-10" >
         <div className="max-w-5xl mx-auto">
           <div className="flex items-end justify-between mb-10">
@@ -396,7 +454,7 @@ export default function Home() {
             </div>
           )}
         </div>
-      </section>
+      </section> */}
 
       
 
@@ -427,11 +485,16 @@ export default function Home() {
 
               <div className="overflow-y-auto">
                 <div className="relative w-full bg-secondary/30">
-                  <ImageWithFallback
-                    src={selectedNews.image}
-                    alt={selectedNews.title}
-                    className="w-full h-auto max-h-[500px] object-contain mx-auto block"
-                  />
+                  <button
+                    onClick={() => setSelectedImage(selectedNews.image)}
+                    className="w-full cursor-pointer"
+                  >
+                    <ImageWithFallback
+                      src={selectedNews.image}
+                      alt={selectedNews.title}
+                      className="w-full h-auto max-h-[500px] object-contain mx-auto block hover:opacity-90 transition-opacity"
+                    />
+                  </button>
                   {selectedNews.category && (
                     <div className="absolute bottom-6 left-6 bg-brand-blue-dark text-white text-ui font-black uppercase px-4 py-2 rounded-xl shadow-xl">
                       {selectedNews.category}
@@ -457,6 +520,28 @@ export default function Home() {
                     ))}
                   </div>
 
+                  {/* Дополнительные фотографии */}
+                  {selectedNews.additional_images && selectedNews.additional_images.length > 0 && (
+                    <div className="mt-8">
+                      <h3 className="text-ui font-bold text-brand-blue-dark mb-4">Дополнительные фотографии</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        {selectedNews.additional_images.map((imgUrl: string, idx: number) => (
+                          <button
+                            key={idx}
+                            onClick={() => setSelectedImage(imgUrl)}
+                            className="relative rounded-xl overflow-hidden border border-border cursor-pointer hover:opacity-90 transition-opacity"
+                          >
+                            <ImageWithFallback
+                              src={imgUrl}
+                              alt={`Дополнительное фото ${idx + 1}`}
+                              className="w-full h-auto object-cover"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mt-12 pt-8 border-t border-border flex items-center justify-between">
                     <div className="flex gap-2">
                       <div className="w-2 h-2 bg-brand-yellow rounded-full" />
@@ -472,6 +557,39 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── IMAGE LIGHTBOX ─── */}
+      <AnimatePresence>
+        {selectedImage && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedImage(null)}
+              className="absolute inset-0 bg-black/90 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative max-w-full max-h-full flex items-center justify-center"
+            >
+              <button
+                onClick={() => setSelectedImage(null)}
+                className="absolute top-4 right-4 z-20 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <img
+                src={selectedImage}
+                alt="Полный размер"
+                className="max-w-full max-h-full object-contain"
+              />
             </motion.div>
           </div>
         )}
