@@ -1,73 +1,8 @@
-/**
- * StudentsAdmin.tsx
- * Вставить в Dashboard.tsx как новый таб "students".
- *
- * Supabase таблицы (создать через SQL Editor):
- *
- * -- Учебники
- * create table textbooks (
- *   id uuid primary key default gen_random_uuid(),
- *   subject text not null,
- *   author text not null,
- *   year int not null,
- *   created_at timestamptz default now()
- * );
- *
- * -- Карточки школьной формы
- * create table uniform_cards (
- *   id uuid primary key default gen_random_uuid(),
- *   grade_label text not null,
- *   description text not null,
- *   note text,
- *   sort_order int default 0,
- *   created_at timestamptz default now()
- * );
- *
- * -- Референсы одежды (изображения)
- * create table uniform_refs (
- *   id uuid primary key default gen_random_uuid(),
- *   card_id uuid references uniform_cards(id) on delete cascade,
- *   url text not null,
- *   caption text,
- *   created_at timestamptz default now()
- * );
- * -- МИГРАЦИЯ (если таблица уже существует):
- * ALTER TABLE uniform_refs ADD COLUMN IF NOT EXISTS card_id uuid references uniform_cards(id) on delete cascade;
- *
- * -- Разделы кружков
- * create table activity_sections (
- *   id uuid primary key default gen_random_uuid(),
- *   title text not null,
- *   sort_order int default 0,
- *   created_at timestamptz default now()
- * );
- *
- * -- Кружки/секции
- * create table activities (
- *   id uuid primary key default gen_random_uuid(),
- *   section_id uuid references activity_sections(id) on delete cascade,
- *   title text not null,
- *   sort_order int default 0,
- *   created_at timestamptz default now()
- * );
- *
- * -- Расписание кружка (дни и время)
- * create table activity_schedules (
- *   id uuid primary key default gen_random_uuid(),
- *   activity_id uuid references activities(id) on delete cascade,
- *   day_of_week int not null, -- 0=Пн, 1=Вт, ... 6=Вс
- *   time text not null,       -- "15:30"
- *   created_at timestamptz default now()
- * );
- *
- * Storage bucket "uniform-refs" (public).
- */
-
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import {
-  Plus, Trash2, Save, X, ChevronDown, ChevronUp,
-  Upload, Edit3, Clock, Image as ImageIcon, BookOpen, Shirt, Music
+  Trash2, ChevronDown, ChevronUp,
+  Upload, Edit3, Image as ImageIcon, BookOpen, Shirt, Music
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -77,7 +12,14 @@ interface Textbook {
   subject: string;
   author: string;
   year: number;
+  grade_label: string;
 }
+
+const GRADES = [
+  "1 класс", "2 класс", "3 класс", "4 класс",
+  "5 класс", "6 класс", "7 класс", "8 класс",
+  "9 класс", "10 класс", "11 класс",
+];
 
 interface UniformCard {
   id: string;
@@ -122,8 +64,6 @@ const btn =
   "px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2";
 const primaryBtn =
   btn + " bg-[#2D6FD4] text-white hover:bg-[#2558b0] shadow hover:shadow-lg";
-const ghostBtn =
-  btn + " border border-border hover:bg-secondary";
 const dangerBtn =
   btn + " text-destructive hover:bg-destructive/10";
 const inputCls =
@@ -131,10 +71,10 @@ const inputCls =
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function StudentsAdmin({ initialSubTab = "books" }: { initialSubTab?: "books" | "activities" }) {
+export default function StudentsAdmin({ initialSubTab = "books", onSectionChange, onEditTextbook, onEditUniform, onEditActivity }: { initialSubTab?: "books" | "activities"; onSectionChange?: (section: "textbooks" | "uniform") => void; onEditTextbook?: (textbook: Textbook) => void; onEditUniform?: (uniform: UniformCard) => void; onEditActivity?: (activity: Activity) => void }) {
   return (
     <div className="space-y-6">
-      {initialSubTab === "books" ? <BooksAndUniformTab /> : <ActivitiesTab />}
+      {initialSubTab === "books" ? <BooksAndUniformTab onSectionChange={onSectionChange || (() => {})} onEditTextbook={onEditTextbook} onEditUniform={onEditUniform} /> : <ActivitiesTab onEditActivity={onEditActivity} />}
     </div>
   );
 }
@@ -143,8 +83,13 @@ export default function StudentsAdmin({ initialSubTab = "books" }: { initialSubT
 // TAB 1: Учебники и форма
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function BooksAndUniformTab() {
+function BooksAndUniformTab({ onSectionChange, onEditTextbook, onEditUniform }: { onSectionChange: (section: "textbooks" | "uniform") => void; onEditTextbook?: (textbook: Textbook) => void; onEditUniform?: (uniform: UniformCard) => void }) {
   const [section, setSection] = useState<"textbooks" | "uniform">("textbooks");
+
+  const handleSectionChange = (s: "textbooks" | "uniform") => {
+    setSection(s);
+    onSectionChange(s);
+  };
 
   return (
     <div className="space-y-4">
@@ -155,8 +100,8 @@ function BooksAndUniformTab() {
           return (
             <button
               key={s}
-              onClick={() => setSection(s)}
-              className={`${btn} text-xs ${section === s ? "bg-[#1A2B4A] text-white" : "border border-border hover:bg-secondary"}`}
+              onClick={() => handleSectionChange(s)}
+              className={`${btn} text-xs ${section === s ? "bg-brand-blue-dark text-white shadow" : "border border-border hover:bg-brand-blue-dark/10 hover:text-brand-blue-dark"}`}
             >
               {icons[s]} {labels[s]}
             </button>
@@ -164,20 +109,18 @@ function BooksAndUniformTab() {
         })}
       </div>
 
-      {section === "textbooks" && <TextbooksSection />}
-      {section === "uniform" && <UniformSection />}
+      {section === "textbooks" && <TextbooksSection onEditTextbook={onEditTextbook} />}
+      {section === "uniform" && <UniformSection onEditUniform={onEditUniform} />}
     </div>
   );
 }
 
 // ── Учебники ─────────────────────────────────────────────────────────────────
 
-function TextbooksSection() {
+function TextbooksSection({ onEditTextbook }: { onEditTextbook?: (textbook: Textbook) => void }) {
   const [items, setItems] = useState<Textbook[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ subject: "", author: "", year: new Date().getFullYear() });
-  const [editId, setEditId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [activeGrade, setActiveGrade] = useState<string>("1 класс");
 
   useEffect(() => { fetch(); }, []);
 
@@ -188,85 +131,60 @@ function TextbooksSection() {
     setLoading(false);
   };
 
-  const save = async () => {
-    if (!form.subject.trim() || !form.author.trim()) return;
-    setSaving(true);
-    if (editId) {
-      await supabase.from("textbooks").update(form).eq("id", editId);
-    } else {
-      await supabase.from("textbooks").insert([form]);
-    }
-    setForm({ subject: "", author: "", year: new Date().getFullYear() });
-    setEditId(null);
-    setSaving(false);
-    fetch();
-  };
-
   const del = async (id: string) => {
     if (!confirm("Удалить учебник?")) return;
     await supabase.from("textbooks").delete().eq("id", id);
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const startEdit = (t: Textbook) => {
-    setForm({ subject: t.subject, author: t.author, year: t.year });
-    setEditId(t.id);
-  };
+  const filteredItems = items.filter((t) => (t.grade_label || "1 класс") === activeGrade);
 
   return (
     <div className="space-y-5">
-      {/* Form */}
-      <div className="bg-secondary/40 border border-border rounded-2xl p-5 space-y-3">
-        <h3 className="font-bold text-sm text-[#1A2B4A]">{editId ? "Редактировать учебник" : "Добавить учебник"}</h3>
-        <div className="grid sm:grid-cols-3 gap-3">
-          <input
-            className={inputCls}
-            placeholder="Предмет"
-            value={form.subject}
-            onChange={(e) => setForm({ ...form, subject: e.target.value })}
-          />
-          <input
-            className={inputCls}
-            placeholder="Автор / издательство"
-            value={form.author}
-            onChange={(e) => setForm({ ...form, author: e.target.value })}
-          />
-          <input
-            className={inputCls}
-            type="number"
-            placeholder="Год"
-            value={form.year}
-            onChange={(e) => setForm({ ...form, year: Number(e.target.value) })}
-          />
-        </div>
-        <div className="flex gap-2">
-          <button onClick={save} disabled={saving} className={primaryBtn}>
-            <Save className="w-4 h-4" /> {saving ? "Сохранение..." : editId ? "Сохранить" : "Добавить"}
-          </button>
-          {editId && (
-            <button onClick={() => { setEditId(null); setForm({ subject: "", author: "", year: new Date().getFullYear() }); }} className={ghostBtn}>
-              <X className="w-4 h-4" /> Отмена
-            </button>
-          )}
+      {/* Grade selector */}
+      <div>
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Учебники {new Date().getFullYear()} — выберите класс</p>
+        <div className="flex flex-wrap gap-2">
+          {GRADES.map((g) => {
+            return (
+              <button
+                key={g}
+                onClick={() => { setActiveGrade(g); }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                  activeGrade === g
+                    ? "bg-brand-blue-dark text-white border-brand-blue-dark shadow"
+                    : "border-border hover:bg-brand-blue-dark/10 hover:text-brand-blue-dark"
+                }`}
+              >
+                {g}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* List */}
       {loading ? (
         <p className="text-sm text-muted-foreground">Загрузка...</p>
-      ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Учебников пока нет.</p>
+      ) : filteredItems.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Учебников для {activeGrade} пока нет.</p>
       ) : (
         <div className="space-y-2">
-          {items.map((t) => (
+          {filteredItems.map((t) => (
             <div key={t.id} className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3 group">
               <div>
                 <span className="font-medium text-sm text-[#1A2B4A]">{t.subject}</span>
                 <span className="text-xs text-muted-foreground ml-3">{t.author}, {t.year}</span>
               </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                <button onClick={() => startEdit(t)} className={ghostBtn + " !px-2 !py-1.5"}><Edit3 className="w-3.5 h-3.5" /></button>
-                <button onClick={() => del(t.id)} className={dangerBtn + " !px-2 !py-1.5"}><Trash2 className="w-3.5 h-3.5" /></button>
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {onEditTextbook && (
+                  <button onClick={() => onEditTextbook(t)} className="p-2 hover:bg-brand-blue-dark/10 text-brand-blue-dark rounded-lg transition-colors">
+                    <Edit3 className="w-5 h-5" />
+                  </button>
+                )}
+                <button onClick={() => del(t.id)} className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors">
+                  <Trash2 className="w-5 h-5" />
+                </button>
               </div>
             </div>
           ))}
@@ -278,14 +196,10 @@ function TextbooksSection() {
 
 // ── Школьная форма (карточки + референсы) ────────────────────────────────────
 
-function UniformSection() {
+function UniformSection({ onEditUniform }: { onEditUniform?: (uniform: UniformCard) => void }) {
   const [cards, setCards] = useState<UniformCard[]>([]);
   const [refs, setRefs] = useState<UniformRef[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ grade_label: "", description: "", note: "" });
-  const [saving, setSaving] = useState(false);
-  const [showForm, setShowForm] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
 
   useEffect(() => { load(); }, []);
@@ -301,33 +215,11 @@ function UniformSection() {
     setLoading(false);
   };
 
-  const save = async () => {
-    if (!form.grade_label.trim() || !form.description.trim()) return;
-    setSaving(true);
-    if (editId) {
-      await supabase.from("uniform_cards").update(form).eq("id", editId);
-    } else {
-      const maxOrder = cards.reduce((m, c) => Math.max(m, c.sort_order), -1);
-      await supabase.from("uniform_cards").insert([{ ...form, sort_order: maxOrder + 1 }]);
-    }
-    setForm({ grade_label: "", description: "", note: "" });
-    setEditId(null);
-    setShowForm(false);
-    setSaving(false);
-    load();
-  };
-
   const del = async (id: string) => {
     if (!confirm("Удалить карточку и все её референсы?")) return;
     await supabase.from("uniform_cards").delete().eq("id", id);
     setCards((prev) => prev.filter((c) => c.id !== id));
     setRefs((prev) => prev.filter((r) => r.card_id !== id));
-  };
-
-  const startEdit = (c: UniformCard) => {
-    setForm({ grade_label: c.grade_label, description: c.description, note: c.note || "" });
-    setEditId(c.id);
-    setShowForm(true);
   };
 
   const moveCard = async (id: string, dir: -1 | 1) => {
@@ -357,45 +249,7 @@ function UniformSection() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{cards.length} карточек</p>
-        <button
-          onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ grade_label: "", description: "", note: "" }); }}
-          className={primaryBtn}
-        >
-          <Plus className="w-4 h-4" /> Добавить карточку
-        </button>
       </div>
-
-      {showForm && (
-        <div className="bg-secondary/40 border border-border rounded-2xl p-5 space-y-3">
-          <h3 className="font-bold text-sm text-[#1A2B4A]">{editId ? "Редактировать" : "Новая карточка"}</h3>
-          <input
-            className={inputCls}
-            placeholder="Заголовок (напр. 1–4 классы)"
-            value={form.grade_label}
-            onChange={(e) => setForm({ ...form, grade_label: e.target.value })}
-          />
-          <textarea
-            className={inputCls + " resize-none h-20"}
-            placeholder="Описание формы"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-          />
-          <input
-            className={inputCls}
-            placeholder="Примечание (курсив, необязательно)"
-            value={form.note}
-            onChange={(e) => setForm({ ...form, note: e.target.value })}
-          />
-          <div className="flex gap-2">
-            <button onClick={save} disabled={saving} className={primaryBtn}>
-              <Save className="w-4 h-4" /> {saving ? "Сохранение..." : editId ? "Сохранить" : "Добавить"}
-            </button>
-            <button onClick={() => { setShowForm(false); setEditId(null); }} className={ghostBtn}>
-              <X className="w-4 h-4" /> Отмена
-            </button>
-          </div>
-        </div>
-      )}
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Загрузка...</p>
@@ -422,7 +276,6 @@ function UniformSection() {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-[#2D6FD4]">{c.grade_label}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{c.description}</p>
-                    {c.note && <p className="text-xs text-muted-foreground italic mt-0.5">{c.note}</p>}
                     <button
                       onClick={() => setExpandedCardId(isExpanded ? null : c.id)}
                       className={`mt-2 inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border transition-all ${
@@ -436,12 +289,14 @@ function UniformSection() {
                       {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     </button>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                    <button onClick={() => startEdit(c)} className={ghostBtn + " !px-2 !py-1.5"}>
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => del(c.id)} className={dangerBtn + " !px-2 !py-1.5"}>
-                      <Trash2 className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {onEditUniform && (
+                      <button onClick={() => onEditUniform(c)} className="p-2 hover:bg-brand-blue-dark/10 text-brand-blue-dark rounded-lg transition-colors">
+                        <Edit3 className="w-5 h-5" />
+                      </button>
+                    )}
+                    <button onClick={() => del(c.id)} className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors">
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
@@ -558,24 +413,14 @@ function CardRefUpload({ cardId, onUploaded }: { cardId: string; onUploaded: (r:
 // TAB 2: Кружки и секции
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function ActivitiesTab() {
+function ActivitiesTab({ onEditActivity }: { onEditActivity?: (activity: Activity) => void }) {
   const [sections, setSections] = useState<ActivitySection[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [schedules, setSchedules] = useState<ActivitySchedule[]>([]);
   const [loading, setLoading] = useState(true);
 
   // UI state
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [expandedActivity, setExpandedActivity] = useState<string | null>(null);
-
-  // New section form
-  const [newSectionTitle, setNewSectionTitle] = useState("");
-
-  // New activity form (per section)
-  const [newActivityTitle, setNewActivityTitle] = useState<Record<string, string>>({});
-
-  // Schedule editor
-  const [scheduleEditor, setScheduleEditor] = useState<Record<string, { days: number[]; time: string }>>({});
+  // (removed expandedActivity and scheduleEditor as schedule is now handled in Dashboard)
 
   useEffect(() => { load(); }, []);
 
@@ -594,15 +439,6 @@ function ActivitiesTab() {
 
   // ── Section CRUD ────────────────────────────────────────────────────────────
 
-  const addSection = async () => {
-    const title = newSectionTitle.trim();
-    if (!title) return;
-    const maxOrder = sections.reduce((m, s) => Math.max(m, s.sort_order), -1);
-    const { data } = await supabase.from("activity_sections").insert([{ title, sort_order: maxOrder + 1 }]).select();
-    if (data) setSections((prev) => [...prev, data[0] as ActivitySection]);
-    setNewSectionTitle("");
-  };
-
   const deleteSection = async (id: string) => {
     if (!confirm("Удалить раздел вместе с кружками?")) return;
     await supabase.from("activity_sections").delete().eq("id", id);
@@ -612,56 +448,11 @@ function ActivitiesTab() {
 
   // ── Activity CRUD ───────────────────────────────────────────────────────────
 
-  const addActivity = async (sectionId: string) => {
-    const title = (newActivityTitle[sectionId] || "").trim();
-    if (!title) return;
-    const maxOrder = activities.filter((a) => a.section_id === sectionId).reduce((m, a) => Math.max(m, a.sort_order), -1);
-    const { data } = await supabase.from("activities").insert([{ section_id: sectionId, title, sort_order: maxOrder + 1 }]).select();
-    if (data) setActivities((prev) => [...prev, data[0] as Activity]);
-    setNewActivityTitle((prev) => ({ ...prev, [sectionId]: "" }));
-  };
-
   const deleteActivity = async (id: string) => {
     if (!confirm("Удалить кружок/секцию?")) return;
     await supabase.from("activities").delete().eq("id", id);
     setActivities((prev) => prev.filter((a) => a.id !== id));
     setSchedules((prev) => prev.filter((s) => s.activity_id !== id));
-  };
-
-  // ── Schedule CRUD ───────────────────────────────────────────────────────────
-
-  const openScheduleEditor = (activityId: string) => {
-    const existing = schedules.filter((s) => s.activity_id === activityId);
-    const days = existing.map((s) => s.day_of_week);
-    const time = existing[0]?.time || "15:00";
-    setScheduleEditor((prev) => ({ ...prev, [activityId]: { days, time } }));
-    setExpandedActivity(activityId);
-  };
-
-  const toggleDay = (activityId: string, day: number) => {
-    setScheduleEditor((prev) => {
-      const cur = prev[activityId] || { days: [], time: "15:00" };
-      const days = cur.days.includes(day) ? cur.days.filter((d) => d !== day) : [...cur.days, day];
-      return { ...prev, [activityId]: { ...cur, days } };
-    });
-  };
-
-  const saveSchedule = async (activityId: string) => {
-    const { days, time } = scheduleEditor[activityId] || { days: [], time: "15:00" };
-    // Delete old
-    await supabase.from("activity_schedules").delete().eq("activity_id", activityId);
-    // Insert new
-    if (days.length > 0) {
-      const rows = days.map((d) => ({ activity_id: activityId, day_of_week: d, time }));
-      const { data } = await supabase.from("activity_schedules").insert(rows).select();
-      setSchedules((prev) => [
-        ...prev.filter((s) => s.activity_id !== activityId),
-        ...((data as ActivitySchedule[]) || []),
-      ]);
-    } else {
-      setSchedules((prev) => prev.filter((s) => s.activity_id !== activityId));
-    }
-    setExpandedActivity(null);
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -670,20 +461,6 @@ function ActivitiesTab() {
 
   return (
     <div className="space-y-5">
-      {/* Add section */}
-      <div className="flex gap-2">
-        <input
-          className={inputCls}
-          placeholder="Название нового раздела (напр. Спорт)"
-          value={newSectionTitle}
-          onChange={(e) => setNewSectionTitle(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addSection()}
-        />
-        <button onClick={addSection} className={primaryBtn + " whitespace-nowrap"}>
-          <Plus className="w-4 h-4" /> Раздел
-        </button>
-      </div>
-
       {sections.length === 0 && (
         <p className="text-sm text-muted-foreground">Разделов пока нет. Создайте первый!</p>
       )}
@@ -691,137 +468,63 @@ function ActivitiesTab() {
       {/* Sections */}
       {sections.map((sec) => {
         const sectionActivities = activities.filter((a) => a.section_id === sec.id);
-        const isExpanded = expandedSection === sec.id;
 
         return (
-          <div key={sec.id} className="border border-border rounded-2xl overflow-hidden">
-            {/* Section header */}
-            <div
-              className="flex items-center justify-between px-5 py-4 bg-secondary/40 cursor-pointer hover:bg-secondary/70 transition-colors"
-              onClick={() => setExpandedSection(isExpanded ? null : sec.id)}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-[#2D6FD4]" />
-                <span className="font-bold text-[#1A2B4A]">{sec.title}</span>
-                <span className="text-xs text-muted-foreground">{sectionActivities.length} кружков</span>
+          <div key={sec.id}>
+            {/* Section header - styled like documents */}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider text-white" style={{ background: "#1A2B4A" }}>
+                {sec.title}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground font-bold">{sectionActivities.length} кружк.</span>
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
-                  onClick={(e) => { e.stopPropagation(); deleteSection(sec.id); }}
-                  className={dangerBtn + " !px-2 !py-1.5 text-xs"}
+                  onClick={() => deleteSection(sec.id)}
+                  className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-5 h-5" />
                 </button>
-                {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
               </div>
             </div>
 
             {/* Activities */}
-            {isExpanded && (
-              <div className="p-4 space-y-3">
-                {/* Add activity */}
-                <div className="flex gap-2">
-                  <input
-                    className={inputCls}
-                    placeholder="Название кружка или секции"
-                    value={newActivityTitle[sec.id] || ""}
-                    onChange={(e) => setNewActivityTitle((prev) => ({ ...prev, [sec.id]: e.target.value }))}
-                    onKeyDown={(e) => e.key === "Enter" && addActivity(sec.id)}
-                  />
-                  <button onClick={() => addActivity(sec.id)} className={primaryBtn + " whitespace-nowrap"}>
-                    <Plus className="w-4 h-4" /> Добавить
-                  </button>
-                </div>
+            <div className="space-y-2">
+              {sectionActivities.length === 0 && (
+                <p className="text-xs text-muted-foreground px-1">Кружков пока нет.</p>
+              )}
 
-                {sectionActivities.length === 0 && (
-                  <p className="text-xs text-muted-foreground px-1">Кружков пока нет.</p>
-                )}
+              {sectionActivities.map((act) => {
+                const actSchedules = schedules.filter((s) => s.activity_id === act.id).sort((a, b) => a.day_of_week - b.day_of_week);
 
-                {sectionActivities.map((act) => {
-                  const actSchedules = schedules.filter((s) => s.activity_id === act.id).sort((a, b) => a.day_of_week - b.day_of_week);
-                  const isEditingSchedule = expandedActivity === act.id;
-                  const editor = scheduleEditor[act.id] || { days: actSchedules.map((s) => s.day_of_week), time: actSchedules[0]?.time || "15:00" };
-
-                  return (
-                    <div key={act.id} className="border border-border rounded-xl overflow-hidden">
-                      {/* Activity row */}
-                      <div className="flex items-center justify-between px-4 py-3 bg-card">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <span className="text-sm font-medium text-[#1A2B4A]">{act.title}</span>
-                          {actSchedules.length > 0 && (
-                            <span className="text-xs text-muted-foreground hidden sm:block">
-                              {actSchedules.map((s) => DAYS[s.day_of_week]).join(", ")} · {actSchedules[0].time}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => isEditingSchedule ? setExpandedActivity(null) : openScheduleEditor(act.id)}
-                            className={`${btn} text-xs ${isEditingSchedule ? "bg-[#2D6FD4] text-white" : "border border-border hover:bg-secondary"}`}
-                          >
-                            <Clock className="w-3.5 h-3.5" /> Расписание
-                          </button>
-                          <button onClick={() => deleteActivity(act.id)} className={dangerBtn + " !px-2 !py-1.5"}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                return (
+                  <div key={act.id} className="border border-border rounded-xl overflow-hidden">
+                    {/* Activity row - styled like documents */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-card group hover:shadow-md transition-all">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <span className="text-sm font-medium text-[#1A2B4A]">{act.title}</span>
+                        {actSchedules.length > 0 && (
+                          <span className="text-xs text-muted-foreground hidden sm:block">
+                            {actSchedules.map((s) => DAYS[s.day_of_week]).join(", ")} · {actSchedules[0].time}
+                          </span>
+                        )}
                       </div>
-
-                      {/* Schedule editor */}
-                      {isEditingSchedule && (
-                        <div className="border-t border-border bg-secondary/30 px-4 py-4 space-y-4">
-                          {/* Day picker */}
-                          <div>
-                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Дни недели</p>
-                            <div className="flex gap-2 flex-wrap">
-                              {DAYS.map((day, idx) => (
-                                <button
-                                  key={day}
-                                  onClick={() => toggleDay(act.id, idx)}
-                                  className={`w-11 h-11 rounded-xl text-sm font-bold transition-all border ${
-                                    editor.days.includes(idx)
-                                      ? "bg-[#2D6FD4] text-white border-[#2D6FD4] shadow-lg"
-                                      : "bg-card border-border text-muted-foreground hover:border-[#2D6FD4]"
-                                  }`}
-                                >
-                                  {day}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Time picker */}
-                          <div>
-                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Время начала</p>
-                            <input
-                              type="time"
-                              value={editor.time}
-                              onChange={(e) =>
-                                setScheduleEditor((prev) => ({
-                                  ...prev,
-                                  [act.id]: { ...editor, time: e.target.value },
-                                }))
-                              }
-                              className="bg-card border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6FD4]/20 focus:border-[#2D6FD4]"
-                            />
-                          </div>
-
-                          <div className="flex gap-2">
-                            <button onClick={() => saveSchedule(act.id)} className={primaryBtn}>
-                              <Save className="w-4 h-4" /> Сохранить расписание
-                            </button>
-                            <button onClick={() => setExpandedActivity(null)} className={ghostBtn}>
-                              <X className="w-4 h-4" /> Отмена
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {onEditActivity && (
+                          <button onClick={() => onEditActivity(act)} className="p-2 hover:bg-brand-blue-dark/10 text-brand-blue-dark rounded-lg transition-colors">
+                            <Edit3 className="w-5 h-5" />
+                          </button>
+                        )}
+                        <button onClick={() => deleteActivity(act.id)} className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors">
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
               </div>
-            )}
-          </div>
+            </div>
         );
       })}
     </div>

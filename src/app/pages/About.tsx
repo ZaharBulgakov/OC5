@@ -296,7 +296,8 @@ export default function About() {
             <div className="flex justify-center mt-8">
               <button
                 onClick={handleShowMoreCollections}
-                className="bg-brand-blue-dark text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5 transition-all w-fit"
+                className="text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5 transition-all w-fit"
+                style={{ backgroundColor: "#7B2FBE" }}
               >
                 Показать еще
               </button>

@@ -18,7 +18,6 @@ import {
   Calendar,
   ArrowRight,
   Folders,
-  GraduationCap,
   BookOpen,
   Music,
   Phone
@@ -28,65 +27,6 @@ import ReactCrop, { type Crop as RicCrop, type PixelCrop, centerCrop, makeAspect
 import "react-image-crop/dist/ReactCrop.css";
 import StudentsAdmin from "./StudentsAdmin";
 
-// Function to add watermark to image
-const addWatermark = async (file: File): Promise<File> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-
-        if (!ctx) {
-          reject(new Error('Failed to get canvas context'));
-          return;
-        }
-
-        canvas.width = img.width;
-        canvas.height = img.height;
-
-        // Draw original image
-        ctx.drawImage(img, 0, 0);
-
-        // Add watermark
-        const watermarkText = 'ОЦ5';
-        const fontSize = Math.max(img.width * 0.05, 20);
-        ctx.font = `bold ${fontSize}px Arial`;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'bottom';
-
-        // Add watermark in bottom right corner
-        const padding = fontSize * 2;
-        ctx.fillText(watermarkText, canvas.width - padding, canvas.height - padding);
-
-        // Convert canvas to blob
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const watermarkedFile = new File([blob], file.name, { type: file.type, lastModified: Date.now() });
-            resolve(watermarkedFile);
-          } else {
-            reject(new Error('Failed to create watermarked image'));
-          }
-        }, file.type);
-      };
-
-      img.onerror = () => {
-        reject(new Error('Failed to load image'));
-      };
-
-      img.src = e.target?.result as string;
-    };
-
-    reader.onerror = () => {
-      reject(new Error('Failed to read file'));
-    };
-
-    reader.readAsDataURL(file);
-  });
-};
 
 interface NewsItem {
   id: string;
@@ -221,15 +161,6 @@ function PreviewCanvas({
   );
 }
 
-interface EnrollmentStep {
-  id: string;
-  num: number;
-  title: string;
-  description: string;
-  details: string[];
-  created_at?: string;
-}
-
 interface FaqItem {
   id: string;
   question: string;
@@ -244,19 +175,18 @@ interface Contact {
   phone: string;
   email?: string;
   image_url?: string;
+  reception_days?: number[];
+  reception_start?: string;
+  reception_end?: string;
   order_num: number;
 }
 
 export default function Dashboard() {
-  const validTabs = ["news", "gallery", "documents", "parents_documents", "schedule-pdf", "director", "home", "students_books", "students_activities", "enrollment_steps", "faqs", "contacts"] as const;
+  const validTabs = ["news", "gallery", "documents", "parents_documents", "schedule-pdf", "director", "home", "students_books", "students_activities", "faqs", "contacts"] as const;
   type TabType = typeof validTabs[number];
   const savedTab = localStorage.getItem("adminActiveTab") as TabType | null;
   const [activeTab, setActiveTab] = useState<TabType>(savedTab && validTabs.includes(savedTab) ? savedTab : "news");
   const setActiveTabPersisted = (tab: TabType) => { setActiveTab(tab); localStorage.setItem("adminActiveTab", tab); };
-  const [enrollmentSteps, setEnrollmentSteps] = useState<EnrollmentStep[]>([]);
-  const [editingStep, setEditingStep] = useState<EnrollmentStep | null>(null);
-  const [stepModalOpen, setStepModalOpen] = useState(false);
-  const [stepSaving, setStepSaving] = useState(false);
   const [faqsData, setFaqsData] = useState<FaqItem[]>([]);
   const [editingFaq, setEditingFaq] = useState<FaqItem | null>(null);
   const [faqModalOpen, setFaqModalOpen] = useState(false);
@@ -265,7 +195,7 @@ export default function Dashboard() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contactSaving, setContactSaving] = useState(false);
-  const [contactForm, setContactForm] = useState({ name: "", position: "", phone: "", email: "", image_url: "" });
+  const [contactForm, setContactForm] = useState({ name: "", position: "", phone: "", email: "", image_url: "", reception_days: [] as number[], reception_start: "", reception_end: "" });
   const [contactUploadFile, setContactUploadFile] = useState<File | null>(null);
   const [contactImagePreview, setContactImagePreview] = useState<string | null>(null);
   const [newsData, setNewsData] = useState<NewsItem[]>([]);
@@ -290,6 +220,23 @@ export default function Dashboard() {
   const [scheduleUploadFile, setScheduleUploadFile] = useState<File | null>(null);
   const [scheduleIsDragging, setScheduleIsDragging] = useState(false);
   const scheduleFileRef = useRef<HTMLInputElement>(null);
+  const [textbookModalOpen, setTextbookModalOpen] = useState(false);
+  const [textbookForm, setTextbookForm] = useState({ subject: "", author: "", year: new Date().getFullYear(), grade_label: "1 класс" });
+  const [textbookEditId, setTextbookEditId] = useState<string | null>(null);
+  const [uniformModalOpen, setUniformModalOpen] = useState(false);
+  const [uniformForm, setUniformForm] = useState({ grade_label: "", description: "" });
+  const [uniformEditId, setUniformEditId] = useState<string | null>(null);
+  const [studentsSection, setStudentsSection] = useState<"textbooks" | "uniform">("textbooks");
+  const [activityModalOpen, setActivityModalOpen] = useState(false);
+  const [activityForm, setActivityForm] = useState({ section_id: "", title: "", scheduleDays: [] as number[], scheduleTime: "15:00" });
+  const [activityEditId, setActivityEditId] = useState<string | null>(null);
+  const [activitySections, setActivitySections] = useState<any[]>([]);
+  const [activitySaving, setActivitySaving] = useState(false);
+  const [showActivitySectionManager, setShowActivitySectionManager] = useState(false);
+  const [newActivitySectionTitle, setNewActivitySectionTitle] = useState("");
+  const [activitySectionSearch, setActivitySectionSearch] = useState("");
+  const [activitySectionEditId, setActivitySectionEditId] = useState<string | null>(null);
+  const [activitySectionEditTitle, setActivitySectionEditTitle] = useState("");
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<NewsItem | GalleryItem | DocumentItem | ParentsDocumentItem | null>(null);
@@ -391,40 +338,6 @@ export default function Dashboard() {
     return URL.createObjectURL(blob);
   };
 
-  const addWatermark = async (file: Blob): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return reject("Could not get canvas context");
-
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-
-        const fontSize = Math.max(20, img.width / 20);
-        ctx.font = `bold ${fontSize}px Arial`;
-        ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "bottom";
-
-        const padding = 20;
-        const line1 = "ОЦ";
-        const line2 = "№5";
-        
-        ctx.fillText(line1, padding, canvas.height - padding - fontSize);
-        ctx.fillText(line2, padding, canvas.height - padding);
-
-        canvas.toBlob((blob) => {
-          if (blob) resolve(blob);
-          else reject("Canvas to Blob failed");
-        }, "image/jpeg");
-      };
-      img.onerror = reject;
-    });
-  };
 
   useEffect(() => {
     if (uploadFile) {
@@ -538,16 +451,6 @@ export default function Dashboard() {
       }
     }
 
-    if (activeTab === "enrollment_steps") {
-      const { data: stepsData, error: stepsError } = await supabase
-        .from("enrollment_steps")
-        .select("*")
-        .order("num", { ascending: true });
-      if (!stepsError) setEnrollmentSteps(stepsData as EnrollmentStep[] || []);
-      setLoading(false);
-      return;
-    }
-
     if (activeTab === "faqs") {
       const { data: faqData, error: faqError } = await supabase
         .from("faqs")
@@ -600,6 +503,13 @@ export default function Dashboard() {
         }
       };
       fetchHero();
+    }
+    if (activeTab === "students_activities") {
+      const fetchActivitySections = async () => {
+        const { data } = await supabase.from("activity_sections").select("*").order("sort_order");
+        setActivitySections(data || []);
+      };
+      fetchActivitySections();
     }
   }, [activeTab]);
 
@@ -720,15 +630,6 @@ export default function Dashboard() {
           let finalOriginalUrl = (editingItem as any)?.original_image;
 
           if (uploadFile) {
-            // Apply watermark to the image (temporarily disabled due to loading issues)
-            // let watermarkedFile: File = uploadFile;
-            // try {
-            //   watermarkedFile = await addWatermark(uploadFile);
-            // } catch (watermarkError) {
-            //   console.error('Error applying watermark:', watermarkError);
-            //   // Proceed with original file if watermarking fails
-            // }
-
             const sanitizedMainName = `gallery-main-${timestamp}-${uploadFile.name.replace(/[^a-zA-Z0-9.]/g, "-").toLowerCase()}`;
             const { data: mainStorageData, error: mainStorageError } = await supabase.storage
               .from('gallery')
@@ -1038,7 +939,10 @@ export default function Dashboard() {
       position: contact.position || "",
       phone: contact.phone,
       email: contact.email || "",
-      image_url: contact.image_url || ""
+      image_url: contact.image_url || "",
+      reception_days: contact.reception_days || [],
+      reception_start: contact.reception_start || "",
+      reception_end: contact.reception_end || ""
     });
     setContactImagePreview(contact.image_url || null);
     setContactUploadFile(null);
@@ -1047,7 +951,7 @@ export default function Dashboard() {
 
   const handleAddContact = () => {
     setEditingContact(null);
-    setContactForm({ name: "", position: "", phone: "", email: "", image_url: "" });
+    setContactForm({ name: "", position: "", phone: "", email: "", image_url: "", reception_days: [], reception_start: "", reception_end: "" });
     setContactImagePreview(null);
     setContactUploadFile(null);
     setContactModalOpen(true);
@@ -1088,6 +992,9 @@ export default function Dashboard() {
         phone: contactForm.phone,
         email: contactForm.email || null,
         image_url: imageUrl || null,
+        reception_days: contactForm.reception_days.length > 0 ? contactForm.reception_days : null,
+        reception_start: contactForm.reception_start || null,
+        reception_end: contactForm.reception_end || null,
         order_num: editingContact ? editingContact.order_num : contactsData.length + 1
       };
 
@@ -1112,7 +1019,7 @@ export default function Dashboard() {
 
       setContactModalOpen(false);
       setEditingContact(null);
-      setContactForm({ name: "", position: "", phone: "", email: "", image_url: "" });
+      setContactForm({ name: "", position: "", phone: "", email: "", image_url: "", reception_days: [], reception_start: "", reception_end: "" });
       setContactUploadFile(null);
       setContactImagePreview(null);
     } catch (error: any) {
@@ -1167,6 +1074,44 @@ export default function Dashboard() {
       console.error("Error deleting schedule PDF:", error);
       alert("Ошибка при удалении PDF-файла расписания: " + (error.message || "Неизвестная ошибка"));
     }
+  };
+
+  // Edit handlers for textbooks, uniforms, activity sections, and activities
+  const handleEditTextbook = (textbook: any) => {
+    setTextbookForm({
+      subject: textbook.subject,
+      author: textbook.author,
+      year: textbook.year,
+      grade_label: textbook.grade_label || "1 класс"
+    });
+    setTextbookEditId(textbook.id);
+    setTextbookModalOpen(true);
+  };
+
+  const handleEditUniform = (uniform: any) => {
+    setUniformForm({
+      grade_label: uniform.grade_label,
+      description: uniform.description
+    });
+    setUniformEditId(uniform.id);
+    setUniformModalOpen(true);
+  };
+
+  const handleEditActivity = async (activity: any) => {
+    // Fetch activity schedules
+    const { data: schedules } = await supabase
+      .from("activity_schedules")
+      .select("*")
+      .eq("activity_id", activity.id);
+    
+    setActivityForm({
+      section_id: activity.section_id,
+      title: activity.title,
+      scheduleDays: schedules?.map((s: any) => s.day_of_week) || [],
+      scheduleTime: schedules?.[0]?.time || "15:00"
+    });
+    setActivityEditId(activity.id);
+    setActivityModalOpen(true);
   };
 
   return (
@@ -1286,7 +1231,6 @@ export default function Dashboard() {
             <h3 className="text-xs font-bold uppercase tracking-wider mb-2 px-2" style={{ color: "#D91E6E" }}>Родителям</h3>
             <div className="space-y-1">
               {[
-                { id: "enrollment_steps", label: "Алгоритм поступления", icon: GraduationCap },
                 { id: "faqs", label: "Вопросы и ответы", icon: BookOpen },
                 { id: "parents_documents", label: "Родителям", icon: Users },
               ].map((tab) => (
@@ -1346,12 +1290,12 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-black text-brand-blue-dark">
-              {activeTab === "news" ? "Новости" : activeTab === "gallery" ? "Галерея" : activeTab === "documents" ? "Документы" : activeTab === "parents_documents" ? "Родителям" : activeTab === "contacts" ? "Контакты" : activeTab === "director" ? "Слово директора" : activeTab === "home" ? "Главная страница" : activeTab === "students_books" ? "Учебники и форма" : activeTab === "students_activities" ? "Кружки и секции" : activeTab === "enrollment_steps" ? "Алгоритм поступления" : activeTab === "faqs" ? "Вопросы и ответы" : "Расписание PDF"}
+              {activeTab === "news" ? "Новости" : activeTab === "gallery" ? "Галерея" : activeTab === "documents" ? "Документы" : activeTab === "parents_documents" ? "Родителям" : activeTab === "contacts" ? "Контакты" : activeTab === "director" ? "Слово директора" : activeTab === "home" ? "Главная страница" : activeTab === "students_books" ? "Учебники и форма" : activeTab === "students_activities" ? "Кружки и секции" : activeTab === "faqs" ? "Вопросы и ответы" : "Расписание PDF"}
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">Управление содержимым раздела</p>
           </div>
           <div className="relative w-full sm:w-auto">
-            {activeTab !== "director" && activeTab !== "home" && activeTab !== "enrollment_steps" && activeTab !== "faqs" && (
+            {activeTab !== "director" && activeTab !== "home" && activeTab !== "faqs" && (
               <>
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
@@ -1382,6 +1326,15 @@ export default function Dashboard() {
                 Разделы
               </button>
             )}
+            {activeTab === "students_activities" && (
+              <button
+                onClick={() => setShowActivitySectionManager(true)}
+                className="border border-border bg-card text-brand-blue-dark px-5 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-secondary transition-all"
+              >
+                <Folders className="w-5 h-5" />
+                Разделы
+              </button>
+            )}
             {activeTab === "contacts" && (
               <button
                 onClick={handleAddContact}
@@ -1391,23 +1344,37 @@ export default function Dashboard() {
                 Добавить контакт
               </button>
             )}
-            {activeTab !== "director" && activeTab !== "home" && activeTab !== "enrollment_steps" && activeTab !== "faqs" && activeTab !== "contacts" && (
-            <button 
-              onClick={() => { 
-                if (activeTab === "gallery" && !selectedCollection) {
+            {activeTab !== "director" && activeTab !== "home" && activeTab !== "faqs" && activeTab !== "contacts" && activeTab !== "schedule-pdf" && (
+            <button
+              onClick={() => {
+                if (activeTab === "students_books") {
+                  if (studentsSection === "textbooks") {
+                    setTextbookForm({ subject: "", author: "", year: new Date().getFullYear(), grade_label: "1 класс" });
+                    setTextbookEditId(null);
+                    setTextbookModalOpen(true);
+                  } else {
+                    setUniformForm({ grade_label: "", description: "" });
+                    setUniformEditId(null);
+                    setUniformModalOpen(true);
+                  }
+                } else if (activeTab === "students_activities") {
+                  setActivityForm({ section_id: "", title: "", scheduleDays: [], scheduleTime: "15:00" });
+                  setActivityEditId(null);
+                  setActivityModalOpen(true);
+                } else if (activeTab === "gallery" && !selectedCollection) {
                   setEditingItem({ id: 'new-collection' } as any);
                 } else {
-                  setEditingItem(null); 
+                  setEditingItem(null);
                 }
                 setUploadFile(null);
                 setOriginalFile(null);
                 setFormSelectedSection("");
-                setIsModalOpen(true); 
+                if (activeTab !== "students_books" && activeTab !== "students_activities") setIsModalOpen(true);
               }}
               className="bg-brand-blue-dark text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5 transition-all w-fit"
             >
               <Plus className="w-5 h-5" />
-              {activeTab === "gallery" ? (selectedCollection ? "Добавить фото" : "Создать коллекцию") : "Добавить запись"}
+              {activeTab === "students_books" ? "Добавить учебник" : activeTab === "students_activities" ? "Добавить кружок" : activeTab === "gallery" ? (selectedCollection ? "Добавить фото" : "Создать коллекцию") : activeTab === "parents_documents" || activeTab === "documents" ? "Добавить документ" : "Добавить новость"}
             </button>
             )}
           </div>
@@ -1494,7 +1461,7 @@ export default function Dashboard() {
                         <span className="text-[10px] font-bold uppercase text-muted-foreground">
                           {galleryData.filter(i => i.collection_id === coll.id).length} фото
                         </span>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -2129,94 +2096,19 @@ export default function Dashboard() {
         )}
 
         {activeTab === "students_books" && (
-          <StudentsAdmin initialSubTab="books" />
+          <StudentsAdmin 
+            initialSubTab="books" 
+            onSectionChange={setStudentsSection} 
+            onEditTextbook={handleEditTextbook}
+            onEditUniform={handleEditUniform}
+          />
         )}
 
         {activeTab === "students_activities" && (
-          <StudentsAdmin initialSubTab="activities" />
-        )}
-
-        {/* ─── ENROLLMENT STEPS EDITOR ─── */}
-        {activeTab === "enrollment_steps" && (
-          <div className="space-y-6">
-            <div className="bg-card border border-border rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <h2 className="font-black text-brand-blue-dark text-lg">Шаги алгоритма поступления</h2>
-                  <p className="text-xs text-muted-foreground mt-1">Редактируйте шаги, которые отображаются на странице «Родителям»</p>
-                </div>
-                <button
-                  onClick={() => {
-                    const maxNum = enrollmentSteps.length > 0 ? Math.max(...enrollmentSteps.map(s => s.num)) + 1 : 1;
-                    setEditingStep({ id: "new", num: maxNum, title: "", description: "", details: [""] });
-                    setStepModalOpen(true);
-                  }}
-                  className="bg-brand-blue-dark text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5 transition-all text-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  Добавить шаг
-                </button>
-              </div>
-            </div>
-
-            <div className="grid gap-4">
-              {enrollmentSteps.map((step) => (
-                <motion.div
-                  layout
-                  key={step.id}
-                  className="bg-card border border-border rounded-2xl p-5 group hover:shadow-md transition-all"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4 flex-1 min-w-0">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-base flex-shrink-0" style={{ background: "#D91E6E" }}>
-                        {step.num}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-black text-brand-blue-dark text-base mb-1">{step.title}</h3>
-                        <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{step.description}</p>
-                        {step.details && step.details.length > 0 && (
-                          <ul className="space-y-1">
-                            {step.details.map((d, i) => (
-                              <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: "#D91E6E" }} />
-                                {d}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                      <button
-                        onClick={() => { setEditingStep(step); setStepModalOpen(true); }}
-                        className="p-2 hover:bg-brand-blue-dark/10 text-brand-blue-dark rounded-lg transition-colors"
-                      >
-                        <Edit3 className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (!confirm(`Удалить шаг «${step.title}»?`)) return;
-                          const { error } = await supabase.from("enrollment_steps").delete().eq("id", step.id);
-                          if (!error) setEnrollmentSteps(prev => prev.filter(s => s.id !== step.id));
-                          else alert("Ошибка при удалении: " + error.message);
-                        }}
-                        className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-              {enrollmentSteps.length === 0 && (
-                <div className="text-center py-16 text-muted-foreground">
-                  <GraduationCap className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                  <p className="font-bold">Шаги ещё не добавлены</p>
-                  <p className="text-sm mt-1">Нажмите «Добавить шаг», чтобы создать первый</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <StudentsAdmin 
+            initialSubTab="activities" 
+            onEditActivity={handleEditActivity}
+          />
         )}
 
         {/* ─── FAQ EDITOR ─── */}
@@ -2329,6 +2221,11 @@ export default function Dashboard() {
                         {contact.email && (
                           <p className="text-xs text-muted-foreground">{contact.email}</p>
                         )}
+                        {contact.reception_days && contact.reception_days.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].filter((_, i) => contact.reception_days?.includes(i)).join(", ")} {contact.reception_start && contact.reception_end ? `${contact.reception_start}-${contact.reception_end}` : ""}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -2436,6 +2333,52 @@ export default function Dashboard() {
                     onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
                     className="w-full px-4 py-3 border border-border rounded-xl bg-secondary/50 outline-none focus:ring-2 focus:ring-brand-blue-dark/20 transition-all"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-brand-blue-dark mb-2">Дни приема</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((day, idx) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          const days = contactForm.reception_days.includes(idx)
+                            ? contactForm.reception_days.filter((d) => d !== idx)
+                            : [...contactForm.reception_days, idx];
+                          setContactForm({ ...contactForm, reception_days: days });
+                        }}
+                        className={`w-11 h-11 rounded-xl text-sm font-bold transition-all border ${
+                          contactForm.reception_days.includes(idx)
+                            ? "bg-[#2D6FD4] text-white border-[#2D6FD4] shadow-lg"
+                            : "bg-card border-border text-muted-foreground hover:border-[#2D6FD4]"
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-brand-blue-dark mb-2">Время начала</label>
+                    <input
+                      type="time"
+                      value={contactForm.reception_start}
+                      onChange={(e) => setContactForm({ ...contactForm, reception_start: e.target.value })}
+                      className="w-full px-4 py-3 border border-border rounded-xl bg-secondary/50 outline-none focus:ring-2 focus:ring-brand-blue-dark/20 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-brand-blue-dark mb-2">Время окончания</label>
+                    <input
+                      type="time"
+                      value={contactForm.reception_end}
+                      onChange={(e) => setContactForm({ ...contactForm, reception_end: e.target.value })}
+                      className="w-full px-4 py-3 border border-border rounded-xl bg-secondary/50 outline-none focus:ring-2 focus:ring-brand-blue-dark/20 transition-all"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -2584,152 +2527,6 @@ export default function Dashboard() {
                   className="px-8 py-2.5 bg-brand-blue-dark text-white rounded-xl font-bold flex items-center gap-2 hover:shadow-lg transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {faqSaving ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : <Save className="w-4 h-4" />}
-                  Сохранить
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
-        {stepModalOpen && editingStep && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => { setStepModalOpen(false); setEditingStep(null); }}
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg bg-card border border-border rounded-3xl shadow-2xl flex flex-col"
-              style={{ maxHeight: "90vh" }}
-            >
-              <div className="flex items-center justify-between p-6 border-b border-border">
-                <h2 className="text-xl font-black text-brand-blue-dark">
-                  {editingStep.id === "new" ? "Новый шаг" : `Редактировать шаг ${editingStep.num}`}
-                </h2>
-                <button onClick={() => { setStepModalOpen(false); setEditingStep(null); }} className="p-2 hover:bg-secondary rounded-xl">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="overflow-y-auto p-6 space-y-4 flex-1">
-                <div>
-                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider mb-1.5 block">Номер шага</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={editingStep.num}
-                    onChange={(e) => setEditingStep(s => s ? { ...s, num: parseInt(e.target.value) || 1 } : s)}
-                    className="w-24 bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider mb-1.5 block">Заголовок</label>
-                  <input
-                    type="text"
-                    value={editingStep.title}
-                    maxLength={10000}
-                    onChange={(e) => setEditingStep(s => s ? { ...s, title: e.target.value } : s)}
-                    placeholder="Название шага..."
-                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider mb-1.5 block">Описание</label>
-                  <textarea
-                    value={editingStep.description}
-                    maxLength={10000}
-                    onChange={(e) => setEditingStep(s => s ? { ...s, description: e.target.value } : s)}
-                    rows={3}
-                    placeholder="Краткое описание шага..."
-                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark resize-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-black text-muted-foreground uppercase tracking-wider mb-1.5 block">Пункты списка</label>
-                  <div className="space-y-2">
-                    {editingStep.details.map((detail, i) => (
-                      <div key={i} className="flex gap-2 items-center">
-                        <input
-                          type="text"
-                          value={detail}
-                          onChange={(e) => {
-                            const updated = [...editingStep.details];
-                            updated[i] = e.target.value;
-                            setEditingStep(s => s ? { ...s, details: updated } : s);
-                          }}
-                          placeholder={`Пункт ${i + 1}...`}
-                          className="flex-1 bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
-                        />
-                        {editingStep.details.length > 1 && (
-                          <button
-                            onClick={() => setEditingStep(s => s ? { ...s, details: s.details.filter((_, idx) => idx !== i) } : s)}
-                            className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-all flex-shrink-0"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => setEditingStep(s => s ? { ...s, details: [...s.details, ""] } : s)}
-                    className="mt-2 flex items-center gap-1.5 text-xs font-bold text-brand-blue-dark hover:underline"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Добавить пункт
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6 border-t border-border flex gap-3 justify-end">
-                <button
-                  onClick={() => { setStepModalOpen(false); setEditingStep(null); }}
-                  className="px-5 py-2.5 rounded-xl font-bold border border-border hover:bg-secondary transition-all text-sm"
-                >
-                  Отмена
-                </button>
-                <button
-                  disabled={stepSaving}
-                  onClick={async () => {
-                    if (!editingStep.title.trim()) { alert("Введите заголовок"); return; }
-                    setStepSaving(true);
-                    try {
-                      const cleanDetails = editingStep.details.filter(d => d.trim());
-                      if (editingStep.id === "new") {
-                        const { data, error } = await supabase
-                          .from("enrollment_steps")
-                          .insert([{ num: editingStep.num, title: editingStep.title.trim(), description: editingStep.description.trim(), details: cleanDetails }])
-                          .select();
-                        if (error) throw error;
-                        if (data) setEnrollmentSteps(prev => [...prev, data[0] as EnrollmentStep].sort((a, b) => a.num - b.num));
-                      } else {
-                        const { data, error } = await supabase
-                          .from("enrollment_steps")
-                          .update({ num: editingStep.num, title: editingStep.title.trim(), description: editingStep.description.trim(), details: cleanDetails })
-                          .eq("id", editingStep.id)
-                          .select();
-                        if (error) throw error;
-                        if (data) setEnrollmentSteps(prev => prev.map(s => s.id === editingStep.id ? data[0] as EnrollmentStep : s).sort((a, b) => a.num - b.num));
-                      }
-                      setStepModalOpen(false);
-                      setEditingStep(null);
-                    } catch (err: any) {
-                      alert("Ошибка при сохранении: " + err.message);
-                    }
-                    setStepSaving(false);
-                  }}
-                  className="px-8 py-2.5 bg-brand-blue-dark text-white rounded-xl font-bold flex items-center gap-2 hover:shadow-lg transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {stepSaving ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : <Save className="w-4 h-4" />}
                   Сохранить
                 </button>
               </div>
@@ -3507,10 +3304,7 @@ export default function Dashboard() {
                             aspect={cropAspect ?? (completedCrop.width / completedCrop.height)}
                           />
                         )}
-                        <div className="absolute bottom-2 left-2 flex flex-col text-[10px] font-black text-white/80 leading-none drop-shadow-md pointer-events-none">
-                          <span>ОЦ</span>
-                          <span>№5</span>
-                        </div>
+
                       </div>
                       <p className="text-[10px] text-muted-foreground leading-relaxed italic text-center">Так новость будет выглядеть при полном открытии.</p>
                     </div>
@@ -3568,17 +3362,14 @@ export default function Dashboard() {
                           if (!crop || !imgRef.current) throw new Error("Выберите область");
                           if (showCropper === "gallery") {
                             const croppedBlob = await getCroppedImg(imgRef.current, crop, false);
-                            const watermarkedBlob = await addWatermark(croppedBlob);
-                            const file = new File([watermarkedBlob], "gallery-image.jpg", { type: "image/jpeg" });
+                            const file = new File([croppedBlob], "gallery-image.jpg", { type: "image/jpeg" });
                             setUploadFile(file);
                           } else {
                             const mainBlob = await getCroppedImg(imgRef.current, crop, false);
-                            const watermarkedMainBlob = await addWatermark(mainBlob);
-                            const mainFile = new File([watermarkedMainBlob], "news-main.jpg", { type: "image/jpeg" });
+                            const mainFile = new File([mainBlob], "news-main.jpg", { type: "image/jpeg" });
 
                             const previewBlob = await getCroppedImg(imgRef.current, crop, isSquareMax);
-                            const watermarkedPreviewBlob = await addWatermark(previewBlob);
-                            const previewFile = new File([watermarkedPreviewBlob], "news-preview.jpg", { type: "image/jpeg" });
+                            const previewFile = new File([previewBlob], "news-preview.jpg", { type: "image/jpeg" });
 
                             setUploadFile(mainFile);
                             (window as any)._pendingPreviewFile = previewFile;
@@ -3788,6 +3579,493 @@ export default function Dashboard() {
                   </>
                 );
               })()}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Textbook Modal */}
+      <AnimatePresence>
+        {textbookModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setTextbookModalOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-card border border-border rounded-3xl shadow-2xl flex flex-col"
+            >
+              <div className="flex items-center justify-between px-8 pt-8 pb-4 flex-shrink-0">
+                <h2 className="text-2xl font-black text-brand-blue-dark">
+                  {textbookEditId ? "Редактировать учебник" : "Добавить учебник"}
+                </h2>
+                <button onClick={() => setTextbookModalOpen(false)} className="p-2 hover:bg-secondary rounded-xl">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!textbookForm.subject.trim() || !textbookForm.author.trim()) return;
+                if (textbookEditId) {
+                  await supabase.from("textbooks").update(textbookForm).eq("id", textbookEditId);
+                } else {
+                  await supabase.from("textbooks").insert([textbookForm]);
+                }
+                setTextbookForm({ subject: "", author: "", year: new Date().getFullYear(), grade_label: "1 класс" });
+                setTextbookEditId(null);
+                setTextbookModalOpen(false);
+                window.location.reload();
+              }} className="space-y-6 overflow-y-auto px-8 pb-8 flex-1">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Класс</label>
+                  <select
+                    value={textbookForm.grade_label}
+                    onChange={(e) => setTextbookForm({ ...textbookForm, grade_label: e.target.value })}
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                  >
+                    {["1 класс", "2 класс", "3 класс", "4 класс", "5 класс", "6 класс", "7 класс", "8 класс", "9 класс", "10 класс", "11 класс"].map((grade) => (
+                      <option key={grade} value={grade}>{grade}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Предмет</label>
+                  <input
+                    type="text"
+                    value={textbookForm.subject}
+                    onChange={(e) => setTextbookForm({ ...textbookForm, subject: e.target.value })}
+                    placeholder="Например: Математика"
+                    required
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Автор / издательство</label>
+                  <input
+                    type="text"
+                    value={textbookForm.author}
+                    onChange={(e) => setTextbookForm({ ...textbookForm, author: e.target.value })}
+                    placeholder="Например: Моро М.И."
+                    required
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Год издания</label>
+                  <input
+                    type="number"
+                    value={textbookForm.year}
+                    onChange={(e) => setTextbookForm({ ...textbookForm, year: Number(e.target.value) })}
+                    placeholder="2024"
+                    required
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setTextbookModalOpen(false)}
+                    className="flex-1 px-6 py-3 rounded-xl font-bold border border-border hover:bg-secondary transition-all"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-6 py-3 bg-brand-blue-dark text-white rounded-xl font-bold shadow-lg hover:shadow-brand-blue-dark/20 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Save className="w-5 h-5" />
+                    {textbookEditId ? "Сохранить" : "Добавить"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Uniform Modal */}
+      <AnimatePresence>
+        {uniformModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setUniformModalOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-card border border-border rounded-3xl shadow-2xl flex flex-col"
+            >
+              <div className="flex items-center justify-between px-8 pt-8 pb-4 flex-shrink-0">
+                <h2 className="text-2xl font-black text-brand-blue-dark">
+                  {uniformEditId ? "Редактировать карточку" : "Добавить карточку"}
+                </h2>
+                <button onClick={() => setUniformModalOpen(false)} className="p-2 hover:bg-secondary rounded-xl">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!uniformForm.grade_label.trim() || !uniformForm.description.trim()) return;
+                const { data: cardsData } = await supabase.from("uniform_cards").select("*").order("sort_order");
+                const cards = (cardsData as any[]) || [];
+                if (uniformEditId) {
+                  await supabase.from("uniform_cards").update(uniformForm).eq("id", uniformEditId);
+                } else {
+                  const maxOrder = cards.reduce((m, c) => Math.max(m, c.sort_order), -1);
+                  await supabase.from("uniform_cards").insert([{ ...uniformForm, sort_order: maxOrder + 1 }]);
+                }
+                setUniformForm({ grade_label: "", description: "" });
+                setUniformEditId(null);
+                setUniformModalOpen(false);
+                window.location.reload();
+              }} className="space-y-6 overflow-y-auto px-8 pb-8 flex-1">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Заголовок</label>
+                  <input
+                    type="text"
+                    value={uniformForm.grade_label}
+                    onChange={(e) => setUniformForm({ ...uniformForm, grade_label: e.target.value })}
+                    placeholder="Например: 1–4 классы"
+                    required
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Описание формы</label>
+                  <textarea
+                    value={uniformForm.description}
+                    onChange={(e) => setUniformForm({ ...uniformForm, description: e.target.value })}
+                    placeholder="Описание школьной формы..."
+                    required
+                    rows={3}
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark resize-none"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setUniformModalOpen(false)}
+                    className="flex-1 px-6 py-3 rounded-xl font-bold border border-border hover:bg-secondary transition-all"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-6 py-3 bg-brand-blue-dark text-white rounded-xl font-bold shadow-lg hover:shadow-brand-blue-dark/20 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Save className="w-5 h-5" />
+                    {uniformEditId ? "Сохранить" : "Добавить"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Activity Modal */}
+      <AnimatePresence>
+        {activityModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setActivityModalOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-card border border-border rounded-3xl shadow-2xl flex flex-col"
+            >
+              <div className="flex items-center justify-between px-8 pt-8 pb-4 flex-shrink-0">
+                <h2 className="text-2xl font-black text-brand-blue-dark">
+                  {activityEditId ? "Редактировать кружок" : "Добавить кружок"}
+                </h2>
+                <button onClick={() => setActivityModalOpen(false)} className="p-2 hover:bg-secondary rounded-xl">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!activityForm.title.trim() || !activityForm.section_id) return;
+                setActivitySaving(true);
+                try {
+                  let activityId: string | null = null;
+                  if (activityEditId) {
+                    await supabase.from("activities").update({ title: activityForm.title, section_id: activityForm.section_id }).eq("id", activityEditId);
+                    activityId = activityEditId;
+                  } else {
+                    const maxOrder = (await supabase.from("activities").select("sort_order").eq("section_id", activityForm.section_id)).data?.reduce((m: number, a: any) => Math.max(m, a.sort_order), -1) || -1;
+                    const { data } = await supabase.from("activities").insert([{ section_id: activityForm.section_id, title: activityForm.title, sort_order: maxOrder + 1 }]).select();
+                    activityId = data?.[0]?.id || null;
+                  }
+
+                  // Save schedule
+                  if (activityId && activityForm.scheduleDays.length > 0) {
+                    await supabase.from("activity_schedules").delete().eq("activity_id", activityId);
+                    const rows = activityForm.scheduleDays.map((d) => ({ activity_id: activityId, day_of_week: d, time: activityForm.scheduleTime }));
+                    await supabase.from("activity_schedules").insert(rows);
+                  }
+
+                  setActivityForm({ section_id: "", title: "", scheduleDays: [], scheduleTime: "15:00" });
+                  setActivityEditId(null);
+                  setActivityModalOpen(false);
+                  window.location.reload();
+                } catch (error) {
+                  alert("Ошибка при сохранении кружка");
+                  setActivitySaving(false);
+                }
+              }} className="space-y-6 overflow-y-auto px-8 pb-8 flex-1">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Раздел</label>
+                  <select
+                    value={activityForm.section_id}
+                    onChange={(e) => setActivityForm({ ...activityForm, section_id: e.target.value })}
+                    required
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                  >
+                    <option value="">Выберите раздел</option>
+                    {activitySections.map((section) => (
+                      <option key={section.id} value={section.id}>{section.title}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Название кружка или секции</label>
+                  <input
+                    type="text"
+                    value={activityForm.title}
+                    onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })}
+                    placeholder="Например: Футбол"
+                    required
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Дни недели</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((day, idx) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          const days = activityForm.scheduleDays.includes(idx)
+                            ? activityForm.scheduleDays.filter((d) => d !== idx)
+                            : [...activityForm.scheduleDays, idx];
+                          setActivityForm({ ...activityForm, scheduleDays: days });
+                        }}
+                        className={`w-11 h-11 rounded-xl text-sm font-bold transition-all border ${
+                          activityForm.scheduleDays.includes(idx)
+                            ? "bg-[#2D6FD4] text-white border-[#2D6FD4] shadow-lg"
+                            : "bg-card border-border text-muted-foreground hover:border-[#2D6FD4]"
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Время начала</label>
+                  <input
+                    type="time"
+                    value={activityForm.scheduleTime}
+                    onChange={(e) => setActivityForm({ ...activityForm, scheduleTime: e.target.value })}
+                    className="bg-card border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6FD4]/20 focus:border-[#2D6FD4]"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setActivityModalOpen(false)}
+                    className="flex-1 px-6 py-3 rounded-xl font-bold border border-border hover:bg-secondary transition-all"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={activitySaving}
+                    className="flex-1 px-6 py-3 bg-brand-blue-dark text-white rounded-xl font-bold shadow-lg hover:shadow-brand-blue-dark/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <Save className="w-5 h-5" />
+                    {activitySaving ? "Сохранение..." : activityEditId ? "Сохранить" : "Добавить"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Activity Section Manager Modal */}
+      <AnimatePresence>
+        {showActivitySectionManager && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { setShowActivitySectionManager(false); setActivitySectionSearch(""); setActivitySectionEditId(null); setActivitySectionEditTitle(""); }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-card border border-border rounded-3xl shadow-2xl p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-black text-brand-blue-dark">Разделы</h2>
+                <button onClick={() => { setShowActivitySectionManager(false); setActivitySectionSearch(""); setActivitySectionEditId(null); setActivitySectionEditTitle(""); }} className="p-2 hover:bg-secondary rounded-xl">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Create/Edit input */}
+              <div className="space-y-2 mb-4">
+                <div className="flex gap-2">
+                  <input
+                    value={activitySectionEditId ? activitySectionEditTitle : newActivitySectionTitle}
+                    onChange={(e) => {
+                      if (activitySectionEditId) {
+                        setActivitySectionEditTitle(e.target.value);
+                      } else {
+                        setNewActivitySectionTitle(e.target.value);
+                      }
+                    }}
+                    placeholder={activitySectionEditId ? "Редактирование раздела..." : "Название нового раздела..."}
+                    className="flex-1 bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                    onKeyDown={async (e) => {
+                      const title = activitySectionEditId ? activitySectionEditTitle : newActivitySectionTitle;
+                      if (e.key === "Enter" && title.trim()) {
+                        if (activitySectionEditId) {
+                          const { error } = await supabase.from("activity_sections").update({ title: title.trim() }).eq("id", activitySectionEditId);
+                          if (!error) {
+                            setActivitySections((prev: any[]) => prev.map((s) => s.id === activitySectionEditId ? { ...s, title: title.trim() } : s));
+                            setActivitySectionEditId(null);
+                            setActivitySectionEditTitle("");
+                          } else if (error) { alert("Ошибка: " + error.message); }
+                        } else {
+                          const { data, error } = await supabase.from("activity_sections").insert([{ title: title.trim(), sort_order: 0 }]).select();
+                          if (!error && data) {
+                            setActivitySections((prev: any[]) => [...prev, data[0]].sort((a, b) => a.title.localeCompare(b.title, "ru")));
+                            setNewActivitySectionTitle("");
+                          } else if (error) { alert("Ошибка: " + error.message); }
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const title = activitySectionEditId ? activitySectionEditTitle : newActivitySectionTitle;
+                      if (!title.trim()) return;
+                      if (activitySectionEditId) {
+                        const { error } = await supabase.from("activity_sections").update({ title: title.trim() }).eq("id", activitySectionEditId);
+                        if (!error) {
+                          setActivitySections((prev: any[]) => prev.map((s) => s.id === activitySectionEditId ? { ...s, title: title.trim() } : s));
+                          setActivitySectionEditId(null);
+                          setActivitySectionEditTitle("");
+                        } else if (error) { alert("Ошибка: " + error.message); }
+                      } else {
+                        const { data, error } = await supabase.from("activity_sections").insert([{ title: title.trim(), sort_order: 0 }]).select();
+                        if (!error && data) {
+                          setActivitySections((prev: any[]) => [...prev, data[0]].sort((a, b) => a.title.localeCompare(b.title, "ru")));
+                          setNewActivitySectionTitle("");
+                        } else if (error) { alert("Ошибка: " + error.message); }
+                      }
+                    }}
+                    className="px-4 py-2.5 bg-brand-blue-dark text-white rounded-xl font-bold hover:bg-brand-blue-dark/80 transition-all flex items-center gap-1"
+                  >
+                    {activitySectionEditId ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {activitySectionEditId ? "Сохранить" : "Создать"}
+                  </button>
+                  {activitySectionEditId && (
+                    <button
+                      type="button"
+                      onClick={() => { setActivitySectionEditId(null); setActivitySectionEditTitle(""); }}
+                      className="px-4 py-2.5 border border-border rounded-xl font-bold hover:bg-secondary transition-all"
+                    >
+                      Отмена
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Search */}
+              {activitySections.length > 0 && (
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Поиск по разделам..."
+                    value={activitySectionSearch}
+                    onChange={(e) => setActivitySectionSearch(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-secondary/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-dark/20 focus:border-brand-blue-dark"
+                  />
+                </div>
+              )}
+
+              {/* List */}
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {activitySections.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">Разделов пока нет. Создайте первый!</p>
+                ) : (
+                  (() => {
+                    const filteredList = activitySectionSearch
+                      ? activitySections.filter((s: any) => s.title.toLowerCase().includes(activitySectionSearch.toLowerCase()))
+                      : activitySections;
+                    if (filteredList.length === 0) return <p className="text-sm text-muted-foreground text-center py-6">Ничего не найдено</p>;
+                    return filteredList.map((item: any) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between bg-secondary/50 border border-border rounded-xl px-4 py-3 group hover:bg-brand-blue-dark/5 hover:border-brand-blue-dark/30 transition-all"
+                      >
+                        <span className="text-sm font-bold text-brand-blue-dark block truncate">{item.title}</span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Удалить раздел "${item.title}"? Все кружки в этом разделе также будут удалены.`)) return;
+                              await supabase.from("activity_sections").delete().eq("id", item.id);
+                              setActivitySections((prev: any[]) => prev.filter((s) => s.id !== item.id));
+                            }}
+                            className="p-1.5 opacity-0 group-hover:opacity-100 bg-transparent hover:bg-destructive/10 text-destructive rounded-lg transition-all ml-2 shrink-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ));
+                  })()
+                )}
+              </div>
             </motion.div>
           </div>
         )}

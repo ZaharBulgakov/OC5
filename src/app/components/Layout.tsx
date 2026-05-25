@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import { VKIcon, OKIcon } from "./SocialIcons";
 import { motion, AnimatePresence } from "motion/react";
-import ChatBot from "./ChatBot";
 import logoImg from "./logo.png";
 
 export interface RouteColor { bg: string; text: string; }
@@ -112,25 +111,9 @@ export default function Layout() {
       <style>{`
         html.vi-black { filter: invert(1) hue-rotate(180deg); }
         html.vi-blue  { background: #00005c !important; filter: sepia(1) saturate(3) hue-rotate(180deg); }
-        @keyframes gradientMove {
-          0%   { transform: translateX(-50%); }
-          100% { transform: translateX(0%); }
-        }
-        .accent-line {
-          overflow: hidden;
-        }
-        .accent-line::before {
-          content: '';
-          display: block;
-          width: 200%;
-          height: 100%;
-          background: linear-gradient(90deg, #F5C200, #E8450A, #D91E6E, #7B2FBE, #2D6FD4, #1ABCB0, #F5C200, #E8450A, #D91E6E, #7B2FBE, #2D6FD4, #1ABCB0, #F5C200);
-          animation: gradientMove 3s linear infinite;
-        }
+
       `}</style>
 
-      {/* Accent line — above header, shifts together with it */}
-      <div className={`accent-line fixed left-0 right-0 h-1 z-50 transition-all duration-300 ${visionPanel ? "top-10" : "top-0"}`} />
       {/* ─── VISION PANEL (above header) ─── */}
       <AnimatePresence>
         {visionPanel && (
@@ -414,9 +397,6 @@ export default function Layout() {
           </footer>
         </div>
       </div>
-
-      {/* ─── CHAT BOT ─── */}
-      <ChatBot routeColor={routeColor} />
 
       {/* ─── SUPPORT MODAL ─── */}
       <AnimatePresence>

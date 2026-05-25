@@ -1,48 +1,7 @@
 import { motion } from "motion/react";
 import { useState, useEffect } from "react";
-import { ChevronDown, Download, Users, ArrowRight, FileText } from "lucide-react";
+import { ChevronDown, Download, Users, FileText } from "lucide-react";
 import { supabase } from "../lib/supabase";
-
-// ─── ENROLLMENT STEPS (loaded from Supabase) ───
-interface EnrollmentStep {
-  id: string;
-  num: number;
-  title: string;
-  description: string;
-  details: string[];
-}
-
-// Fallback steps used only if DB is empty
-const DEFAULT_STEPS: EnrollmentStep[] = [
-  // {
-  //   id: "1",
-  //   num: 1,
-  //   title: "Выбор класса",
-  //   description: "Определите подходящую программу: 1 класс, 5 класс или профильное направление. Ознакомьтесь с учебным планом.",
-  //   details: ["1 класс: для детей 6–7 лет (по состоянию на 1 сентября)", "5 класс: переход из начальной школы", "Профиль: углублённое изучение предметов (10–11 кл.)"],
-  // },
-  // {
-  //   id: "2",
-  //   num: 2,
-  //   title: "Сбор документов",
-  //   description: "Подготовьте полный пакет документов для подачи заявления на поступление.",
-  //   details: ["Свидетельство о рождении (оригинал + копия)", "Документ, удостоверяющий личность родителя/опекуна", "Медицинская карта и прививочный сертификат", "Справка с места жительства (регистрация)"],
-  // },
-  // {
-  //   id: "3",
-  //   num: 3,
-  //   title: "Подача заявления",
-  //   description: "Заполните и подайте заявление онлайн через портал Госуслуги или лично в приёмной комиссии.",
-  //   details: ["Онлайн: через портал Госуслуги (gosuslugi.ru)", "Лично: каб. 101, пн–пт 9:00–16:00", "Срок подачи заявлений: до 15 июня 2026 г.", "Для учащихся по прописке: приоритетный приём"],
-  // },
-  // {
-  //   id: "4",
-  //   num: 4,
-  //   title: "Зачисление",
-  //   description: "Пройдите вводное собеседование с администрацией и получите уведомление о зачислении.",
-  //   details: ["Тестирование (1 кл.): определение готовности к школе", "Собеседование: с директором или завучем", "Уведомление о зачислении: в течение 2 рабочих недель", "Приказ о зачислении: до 31 августа"],
-  // },
-];
 
 // ─── FAQ ───
 interface FaqItem {
@@ -69,7 +28,6 @@ export default function Parents() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [downloads, setDownloads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [steps, setSteps] = useState<EnrollmentStep[]>(DEFAULT_STEPS);
   const [faqs, setFaqs] = useState<FaqItem[]>(DEFAULT_FAQS);
 
   useEffect(() => {
@@ -86,17 +44,6 @@ export default function Parents() {
       setLoading(false);
     };
     fetchParentsDocuments();
-
-    const fetchEnrollmentSteps = async () => {
-      const { data, error } = await supabase
-        .from("enrollment_steps")
-        .select("*")
-        .order("num", { ascending: true });
-      if (!error && data && data.length > 0) {
-        setSteps(data as EnrollmentStep[]);
-      }
-    };
-    fetchEnrollmentSteps();
 
     const fetchFaqs = async () => {
       const { data, error } = await supabase
@@ -153,86 +100,13 @@ export default function Parents() {
         >
           <h1 className="text-heading font-bold mb-4" style={{ color: "#1A2B4A" }}>Родителям</h1>
           <p className="max-w-xl text-body" style={{ color: "#D91E6E", opacity: 0.85 }}>
-            Всё необходимое для родителей и законных представителей учащихся: порядок поступления,
-            часто задаваемые вопросы, документы и контакты.
+            Всё необходимое для родителей и законных представителей учащихся: порядок поступления, часто задаваемые вопросы и документы
           </p>
         </motion.div>
       </section>
 
-      {/* ─── АЛГОРИТМ ПОСТУПЛЕНИЯ ─── */}
-      <section className="py-20 px-6 lg:px-10">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-14">
-            <h2 className="text-heading font-bold" style={{ color: "#1A2B4A" }}>Алгоритм поступления</h2>
-          </div>
-
-          <div
-            className={steps.length > 4 ? "overflow-x-auto overflow-y-hidden pb-4 -mx-6 px-6" : ""}
-          >
-            <div
-              className="flex gap-4 md:gap-3"
-              style={
-                steps.length > 4
-                  ? { width: `max-content`, minWidth: "100%" }
-                  : { justifyContent: "center" }
-              }
-            >
-              {steps.map((step, i) => (
-                <motion.div
-                  key={step.num}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="flex flex-col flex-shrink-0"
-                  style={{ width: steps.length > 4 ? "240px" : undefined, flex: steps.length <= 4 ? "0 1 260px" : undefined }}
-                >
-                  {/* Indicator */}
-                  <div className="flex justify-center mb-6 relative">
-                    <div
-                      className="w-16 h-16 rounded-full flex items-center justify-center text-lg font-bold shadow-md z-10 relative"
-                      style={{ background: "#D91E6E", color: "#ffffff" }}
-                    >
-                      {step.num}
-                    </div>
-                  </div>
-
-                  {/* Card */}
-                  <div className="border border-border bg-card rounded-xl p-5 flex flex-col gap-3 flex-1">
-                    <h3 className="font-bold text-sm">{step.title}</h3>
-
-                    <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
-
-                    <ul className="space-y-2 mt-auto pt-3 border-t border-border">
-                      {step.details.map((d, di) => (
-                        <li key={di} className="flex items-start gap-2 text-sm text-muted-foreground leading-relaxed">
-                          <span className="w-3 h-3 rounded mt-0.5 flex-shrink-0" style={{ border: "1.5px solid #D91E6E" }} />
-                          {d}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-12 text-center">
-            <a
-              href="https://gosuslugi.ru"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full hover:opacity-85 transition-opacity text-sm font-semibold shadow-md"
-              style={{ background: "#D91E6E", color: "#ffffff" }}
-            >
-              Подать заявление через Госуслуги <ArrowRight className="w-4 h-4" />
-            </a>
-          </div>
-        </div>
-      </section>
-
       {/* ─── РОДИТЕЛЬСКИЙ КОМИТЕТ ─── */}
-      <section className="py-12 px-6 lg:px-10 border-t border-border bg-secondary" style={{ background: "#FFF0F6" }}>
+      <section className="py-12 px-6 lg:px-10 border-t border-border bg-secondary" >
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -268,7 +142,7 @@ export default function Parents() {
       </section>
 
       {/* ─── FAQ АККОРДЕОН ─── */}
-      <section className="py-16 px-6 lg:px-10 border-t border-border">
+      <section className="py-16 px-6 lg:px-10 border-t border-border" style={{ background: "#FFF0F6" }}>
         <div className="max-w-5xl mx-auto">
           <div className="mb-10">
             <h2 className="text-heading font-bold" style={{ color: "#1A2B4A" }}>Часто задаваемые вопросы</h2>
@@ -314,7 +188,7 @@ export default function Parents() {
       </section>
 
       {/* ─── ДОКУМЕНТЫ ДЛЯ СКАЧИВАНИЯ ─── */}
-      <section className="py-16 px-6 lg:px-10 border-t border-border" style={{ background: "#FFF0F6" }}>
+      <section className="py-16 px-6 lg:px-10 border-t border-border">
         <div className="max-w-5xl mx-auto">
           <div className="mb-10">
             <h2 className="text-heading font-bold">Документы для родителей</h2>

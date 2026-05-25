@@ -11,6 +11,9 @@ interface Contact {
   phone: string;
   email?: string;
   image_url?: string;
+  reception_days?: number[];
+  reception_start?: string;
+  reception_end?: string;
   order_num: number;
 }
 
@@ -257,6 +260,16 @@ export default function Contacts() {
                           <Mail className="w-3 h-3" style={{ color: "#ffffff" }} />
                         </div>
                         <a href={`mailto:${contact.email}`} className="hover:text-foreground transition-colors">{contact.email}</a>
+                      </div>
+                    )}
+                    {contact.reception_days && contact.reception_days.length > 0 && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#1ABCB0" }}>
+                          <Clock className="w-3 h-3" style={{ color: "#ffffff" }} />
+                        </div>
+                        <span className="text-sm">
+                          {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].filter((_, i) => contact.reception_days?.includes(i)).join(", ")} {contact.reception_start && contact.reception_end ? `${contact.reception_start}-${contact.reception_end}` : ""}
+                        </span>
                       </div>
                     )}
                   </div>

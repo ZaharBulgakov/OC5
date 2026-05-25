@@ -11,7 +11,14 @@ interface Textbook {
   subject: string;
   author: string;
   year: number;
+  grade_label: string;
 }
+
+const GRADES_LIST = [
+  "1 класс", "2 класс", "3 класс", "4 класс",
+  "5 класс", "6 класс", "7 класс", "8 класс",
+  "9 класс", "10 класс", "11 класс",
+];
 
 interface UniformCard {
   id: string;
@@ -227,23 +234,23 @@ export default function Students() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/50 flex items-start justify-center p-4 pt-20 overflow-y-auto"
+            className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
             onClick={(e) => e.target === e.currentTarget && setActiveModal(null)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="bg-card border border-border rounded-lg shadow-xl w-full max-w-3xl mb-8"
+              className="bg-card border border-border rounded-lg shadow-xl w-full max-w-3xl flex flex-col"
+              style={{ maxHeight: "90vh" }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+              <div className="flex-none flex items-center justify-between px-6 py-5 border-b border-border">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded flex items-center justify-center" style={{ background: "#2D6FD4", color: "#fff" }}>
                     <activeSection.icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-ui text-muted-foreground font-mono uppercase tracking-wider">Школьникам</p>
                     <h2 className="font-bold">{activeSection.title}</h2>
                   </div>
                 </div>
@@ -253,7 +260,7 @@ export default function Students() {
               </div>
 
               {/* Body */}
-              <div className="px-6 py-6">
+              <div className="px-6 py-6 overflow-y-auto flex-1">
                 {activeModal === "schedule" && (
                   <div className="space-y-6">
                     {schedulePdfUrl ? (
@@ -310,6 +317,15 @@ function BooksModal({
   const [openCardId, setOpenCardId] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ refs: UniformRef[]; index: number } | null>(null);
 
+  // Determine which grades actually have textbooks
+  const gradesWithBooks = GRADES_LIST.filter((g) =>
+    textbooks.some((t) => (t.grade_label || "1 класс") === g)
+  );
+  const [activeGrade, setActiveGrade] = useState<string | null>(null);
+
+  // Auto-select first available grade
+  const selectedGrade = activeGrade ?? gradesWithBooks[0] ?? null;
+
   if (loading) return <p className="text-muted-foreground text-body">Загрузка...</p>;
 
   const years = yearLabel || "текущий год";
@@ -318,6 +334,10 @@ function BooksModal({
   const closeLightbox = () => setLightbox(null);
   const prevImage = () => setLightbox((l) => l ? { ...l, index: (l.index - 1 + l.refs.length) % l.refs.length } : null);
   const nextImage = () => setLightbox((l) => l ? { ...l, index: (l.index + 1) % l.refs.length } : null);
+
+  const filteredTextbooks = selectedGrade
+    ? textbooks.filter((t) => (t.grade_label || "1 класс") === selectedGrade)
+    : textbooks;
 
   return (
     <div className="space-y-6">
@@ -396,22 +416,28 @@ function BooksModal({
         {uniformCards.length === 0 ? (
           <p className="text-muted-foreground text-body">Информация о форме не добавлена.</p>
         ) : (
-          <div className="grid sm:grid-cols-3 gap-3">
+          <div className={uniformCards.length === 1 ? "flex justify-center" : "flex gap-3 overflow-x-auto pb-2 pr-4"}>
             {[...uniformCards].sort((a, b) => a.sort_order - b.sort_order).map((card) => {
               const cardRefs = uniformRefs.filter((r) => r.card_id === card.id);
               const isOpen = openCardId === card.id;
 
               return (
-                <div key={card.id} className="border border-border rounded-xl overflow-hidden bg-secondary">
-                  <div className="p-4">
-                    <p className="font-semibold text-body mb-2" style={{ color: "#2D6FD4" }}>{card.grade_label}</p>
-                    <p className="text-ui text-muted-foreground leading-relaxed">{card.description}</p>
-                    {card.note && <p className="text-ui text-muted-foreground mt-1 italic">{card.note}</p>}
+                <div
+                  key={card.id}
+                  className="border border-border rounded-xl overflow-hidden bg-secondary flex-none"
+                  style={{ width: uniformCards.length === 1 ? "100%" : "calc(50% - 6px)", minWidth: 240 }}
+                >
+                  <div className="p-4 flex flex-col" style={{ maxHeight: 320 }}>
+                    <p className="font-semibold text-body mb-2 flex-none" style={{ color: "#2D6FD4" }}>{card.grade_label}</p>
+                    <div className="overflow-y-auto flex-1 pr-1" style={{ scrollbarWidth: "thin" }}>
+                      <p className="text-body text-muted-foreground leading-relaxed">{card.description}</p>
+                      {card.note && <p className="text-body text-muted-foreground mt-1 italic">{card.note}</p>}
+                    </div>
 
                     {cardRefs.length > 0 && (
                       <button
                         onClick={() => setOpenCardId(isOpen ? null : card.id)}
-                        className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all"
+                        className="mt-3 flex-none inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all"
                         style={
                           isOpen
                             ? { background: "#2D6FD4", color: "#fff", borderColor: "#2D6FD4" }
@@ -456,16 +482,44 @@ function BooksModal({
       {/* Учебники */}
       <div>
         <h3 className="font-bold mb-3" style={{ color: "#1A2B4A" }}>Учебники {years}</h3>
+
         {textbooks.length === 0 ? (
           <p className="text-muted-foreground text-body">Список учебников не добавлен.</p>
         ) : (
-          <div className="space-y-2">
-            {textbooks.map((t) => (
-              <div key={t.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <span className="text-body font-medium" style={{ color: "#1A2B4A" }}>{t.subject}</span>
-                <span className="text-ui" style={{ color: "#2D6FD4", opacity: 0.75 }}>{t.author}, {t.year}</span>
+          <div className="space-y-4">
+            {/* Grade filter buttons */}
+            {gradesWithBooks.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {gradesWithBooks.map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => setActiveGrade(g)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                      selectedGrade === g
+                        ? "bg-[#2D6FD4] text-white border-[#2D6FD4] shadow"
+                        : "border-border hover:border-[#2D6FD4] hover:text-[#2D6FD4]"
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
               </div>
-            ))}
+            )}
+
+            {filteredTextbooks.length === 0 ? (
+              <p className="text-muted-foreground text-body">Учебников для {selectedGrade} нет.</p>
+            ) : (
+              <div className="border border-border rounded-xl overflow-hidden">
+                <div className="px-4 divide-y divide-border">
+                  {filteredTextbooks.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between py-2.5">
+                      <span className="text-body font-medium" style={{ color: "#1A2B4A" }}>{t.subject}</span>
+                      <span className="text-body text-right ml-3 shrink-0" style={{ color: "#2D6FD4", opacity: 0.75 }}>{t.author}, {t.year}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
