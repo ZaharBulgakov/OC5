@@ -40,7 +40,7 @@ export default function Layout() {
   const [speechMode, setSpeechMode] = useState(false);
   const location = useLocation();
 
-  // Apply vision settings — font size goes on <body>, not <html>, to avoid breaking rem
+  // Применение настроек зрения — размер шрифта устанавливается на <body>, а не на <html>, чтобы не ломать rem
   useEffect(() => {
     const html = document.documentElement;
     document.body.style.fontSize = fontSize === 100 ? "" : `${fontSize}%`;
@@ -48,7 +48,7 @@ export default function Layout() {
     if (colorScheme !== "white") html.classList.add(`vi-${colorScheme}`);
   }, [fontSize, colorScheme]);
 
-  // Hide/show images
+  // Скрыть/показать изображения
   useEffect(() => {
     const style = document.getElementById("vi-hide-images") || document.createElement("style");
     style.id = "vi-hide-images";

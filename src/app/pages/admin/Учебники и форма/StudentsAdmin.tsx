@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../../../lib/supabase";
 import {
   Trash2, ChevronDown, ChevronUp,
   Upload, Edit3, Image as ImageIcon, BookOpen, Shirt, Music

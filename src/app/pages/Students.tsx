@@ -102,13 +102,13 @@ export default function Students() {
   const [schedulePdfUrl, setSchedulePdfUrl] = useState<string | null>(null);
   const [textbookYearLabel, setTextbookYearLabel] = useState<string>("");
 
-  // Books & Uniform
+  // Учебники и форма
   const [textbooks, setTextbooks] = useState<Textbook[]>([]);
   const [uniformCards, setUniformCards] = useState<UniformCard[]>([]);
   const [uniformRefs, setUniformRefs] = useState<UniformRef[]>([]);
   const [booksLoading, setBooksLoading] = useState(false);
 
-  // Activities
+  // Кружки и секции
   const [actSections, setActSections] = useState<ActivitySection[]>([]);
   const [actActivities, setActActivities] = useState<Activity[]>([]);
   const [actSchedules, setActSchedules] = useState<ActivitySchedule[]>([]);
@@ -123,7 +123,7 @@ export default function Students() {
     });
   }, []);
 
-  // Fetch books data when modal opens
+  // Загрузка данных учебников при открытии модального окна
   useEffect(() => {
     if (activeModal === "books" && textbooks.length === 0 && !booksLoading) {
       setBooksLoading(true);
@@ -140,7 +140,7 @@ export default function Students() {
     }
   }, [activeModal]);
 
-  // Fetch activities data when modal opens
+  // Загрузка данных кружков при открытии модального окна
   useEffect(() => {
     if (activeModal === "extracurricular" && actSections.length === 0 && !actLoading) {
       setActLoading(true);
@@ -317,13 +317,13 @@ function BooksModal({
   const [openCardId, setOpenCardId] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ refs: UniformRef[]; index: number } | null>(null);
 
-  // Determine which grades actually have textbooks
+  // Определение классов, у которых есть учебники
   const gradesWithBooks = GRADES_LIST.filter((g) =>
     textbooks.some((t) => (t.grade_label || "1 класс") === g)
   );
   const [activeGrade, setActiveGrade] = useState<string | null>(null);
 
-  // Auto-select first available grade
+  // Автоматический выбор первого доступного класса
   const selectedGrade = activeGrade ?? gradesWithBooks[0] ?? null;
 
   if (loading) return <p className="text-muted-foreground text-body">Загрузка...</p>;
